@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // כללי אבטחה לבתי ספר
+    match /schools/{schoolId} {
+      // מנהל יכול לקרוא ולעדכן רק את בית הספר שלו
+      allow read, write: if request.auth != null && request.auth.uid == schoolId;
+      
+      // כללי אבטחה למורים
+      match /teachers/{teacherId} {
+        // מנהל יכול לקרוא ולעדכן רק את המורים של בית הספר שלו
+        allow read, write: if request.auth != null && request.auth.uid == schoolId;
+        
+        // כללי אבטחה לפעולות
+        match /actions/{actionId} {
+          // מנהל יכול לקרוא ולעדכן רק את הפעולות של המורים בבית הספר שלו
+          allow read, write: if request.auth != null && request.auth.uid == schoolId;
+        }
+      }
+    }
+  }
+}
+

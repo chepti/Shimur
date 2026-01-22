@@ -53,6 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('נרשמת בהצלחה!')),
           );
+          // ניווט למסך הבית וניקוי ההיסטוריה
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
         }
       } else {
         // התחברות
@@ -65,6 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('התחברת בהצלחה!')),
           );
+          // ניווט למסך הבית וניקוי ההיסטוריה
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
         }
       }
     } catch (e) {

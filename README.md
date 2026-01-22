@@ -18,7 +18,7 @@
 
 **בקצרה:**
 1. הורד את Flutter מ: https://flutter.dev/docs/get-started/install/windows
-2. חלץ את הקובץ ZIP לתיקייה (למשל `C:\src\flutter`)
+2. חלץ את הקובץ ZIP לתיקייה (למשל `T:\CURSOR2\Programs\flutter`)
 3. הוסף את Flutter ל-PATH
 4. הפעל מחדש את PowerShell ובדוק:
    ```bash

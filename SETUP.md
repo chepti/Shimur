@@ -12,22 +12,32 @@ flutter create .
 
 ## שלב 1: התקנת Flutter
 
-### Windows:
+### התקנה דרך VS Code (מומלץ):
 
-1. הורד את Flutter מ: https://flutter.dev/docs/get-started/install/windows
-2. חלץ את הקובץ ZIP לתיקייה (למשל `C:\src\flutter`)
-3. הוסף את Flutter ל-PATH:
-   - לחץ על "התחל" וחפש "משתני סביבה"
-   - לחץ על "משתני סביבה" → "משתני סביבה"
-   - בחר "Path" ולחץ "ערוך"
-   - לחץ "חדש" והוסף: `C:\src\flutter\bin`
-   - לחץ "אישור" בכל החלונות
-4. הפעל מחדש את PowerShell
-5. בדוק שההתקנה הצליחה:
+1. **התקן את Flutter Extension:**
+   - פתח את VS Code
+   - לחץ על Extensions (או Ctrl+Shift+X)
+   - חפש "Flutter" והתקן את ה-extension הרשמי של Flutter
+   - זה יתקין גם את ה-Dart extension אוטומטית
+
+2. **התקן את Flutter SDK דרך VS Code:**
+   - פתח את Command Palette (Ctrl+Shift+P)
+   - הקלד `flutter` ובחר **Flutter: New Project**
+   - VS Code יבקש את מיקום ה-Flutter SDK - בחר **Download SDK**
+   - בחר תיקייה להתקנה (למשל `T:\CURSOR2\Programs\flutter`)
+   - לחץ **Clone Flutter** (זה יוריד את Flutter אוטומטית)
+   - לחץ **Add SDK to PATH** (VS Code יוסיף את Flutter ל-PATH אוטומטית)
+   
+   **חשוב**: לא צריך להוסיף משתני סביבה ידנית! VS Code עושה את זה אוטומטית.
+
+3. **הפעל מחדש את VS Code ואת כל חלונות הטרמינל**
+
+4. **בדוק שההתקנה הצליחה:**
    ```bash
    flutter doctor
    ```
    - אם יש שגיאות, עקוב אחרי ההוראות שמופיעות
+   - **הערה**: אם יש אזהרה על Android Studio, זה בסדר אם אתה מפתח רק ל-web או iOS
 
 ### התקנת Android Studio (לפיתוח Android):
 

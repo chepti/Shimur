@@ -6,23 +6,16 @@ import 'screens/teachers_list_screen.dart';
 import 'screens/tasks_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/auth_service.dart';
-
-// הערה: firebase_options.dart נוצר אוטומטית על ידי flutterfire configure
-// אם הקובץ לא קיים, הרץ: flutterfire configure
-// לאחר מכן, הוסף כאן: import 'firebase_options.dart';
-// ושנה את השורה הבאה ל: await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    // אם יש firebase_options.dart, השתמש בו:
-    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    // אחרת, השתמש בהגדרות ידניות (לא מומלץ לפרודקשן):
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
-    // אם יש שגיאה, ודא שרצת: flutterfire configure
     debugPrint('שגיאה באתחול Firebase: $e');
-    debugPrint('הרץ: flutterfire configure');
   }
   runApp(const MyApp());
 }
@@ -39,7 +32,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         primaryColor: const Color(0xFF11a0db),
         scaffoldBackgroundColor: Colors.grey[50],
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -69,10 +62,8 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
-
     return StreamBuilder<User?>(
-      stream: authService.authStateChanges,
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -80,7 +71,7 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
+        if (snapshot.hasData && snapshot.data != null) {
           return const MainNavigationScreen();
         }
 
@@ -140,4 +131,3 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 }
-

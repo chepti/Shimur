@@ -15,9 +15,22 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
   final _seniorityController = TextEditingController();
   final _totalSeniorityController = TextEditingController();
   final _notesController = TextEditingController();
+  final _absencesController = TextEditingController();
   final _firestoreService = FirestoreService();
   String _selectedStatus = 'green';
   bool _isLoading = false;
+  double _workloadPercent = 86; // ברירת מחדל 86%
+  double _satisfactionRating = 3;
+  double _belongingRating = 3;
+  double _workloadRating = 3;
+  final Set<String> _selectedActivities = {};
+  final TextEditingController _newActivityController = TextEditingController();
+
+  static const List<String> _baseActivities = [
+    'רכז',
+    'ליווי טיול',
+    'טקס',
+  ];
 
   @override
   void dispose() {
@@ -25,6 +38,8 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     _seniorityController.dispose();
     _totalSeniorityController.dispose();
     _notesController.dispose();
+    _absencesController.dispose();
+    _newActivityController.dispose();
     super.dispose();
   }
 
@@ -44,6 +59,12 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
             ? null
             : _notesController.text.trim(),
         createdAt: DateTime.now(),
+        workloadPercent: _workloadPercent.toInt(),
+        satisfactionRating: _satisfactionRating.toInt(),
+        belongingRating: _belongingRating.toInt(),
+        workloadRating: _workloadRating.toInt(),
+        absencesThisYear: int.tryParse(_absencesController.text.trim()) ?? 0,
+        specialActivities: _selectedActivities.toList(),
       );
 
       await _firestoreService.addTeacher(teacher);
@@ -147,6 +168,139 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'היקף משרה',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: _workloadPercent,
+                        min: 3,
+                        max: 116,
+                        divisions: 113,
+                        label: '${_workloadPercent.toInt()}%',
+                        onChanged: (value) {
+                          setState(() => _workloadPercent = value);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        '${_workloadPercent.toInt()}%',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'דירוגים (1–5)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildRatingRow('שביעות רצון', _satisfactionRating,
+                    (v) => setState(() => _satisfactionRating = v)),
+                _buildRatingRow('תחושת שייכות', _belongingRating,
+                    (v) => setState(() => _belongingRating = v)),
+                _buildRatingRow('עומס', _workloadRating,
+                    (v) => setState(() => _workloadRating = v)),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _absencesController,
+                  decoration: InputDecoration(
+                    labelText: 'היעדרויות השנה',
+                    prefixIcon: const Icon(Icons.event_busy),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return null; // אופציונלי
+                    }
+                    if (int.tryParse(value.trim()) == null) {
+                      return 'נא להזין מספר תקין';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'פעילויות מיוחדות',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    ...{..._baseActivities, ..._selectedActivities}.map(
+                      (activity) => FilterChip(
+                        label: Text(activity),
+                        selected: _selectedActivities.contains(activity),
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedActivities.add(activity);
+                            } else {
+                              _selectedActivities.remove(activity);
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _newActivityController,
+                        decoration: InputDecoration(
+                          labelText: 'הוסף פעילות מיוחדת',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle,
+                          color: Color(0xFF11a0db)),
+                      onPressed: () {
+                        final text = _newActivityController.text.trim();
+                        if (text.isEmpty) return;
+                        setState(() {
+                          _selectedActivities.add(text);
+                          _newActivityController.clear();
+                        });
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -266,6 +420,38 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildRatingRow(
+      String label, double value, ValueChanged<double> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: value,
+                min: 1,
+                max: 5,
+                divisions: 4,
+                label: value.toInt().toString(),
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 24,
+              child: Text(
+                value.toInt().toString(),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 

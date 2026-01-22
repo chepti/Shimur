@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Action;
 import '../models/action.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import 'add_action_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({Key? key}) : super(key: key);
@@ -23,18 +24,21 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _loadActions() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final actions = await _firestoreService.getAllUpcomingActions(
         thisWeekOnly: _thisWeekOnly,
       );
-      setState(() {
-        _allActions = actions;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _allActions = actions;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('שגיאה: $e')),
         );
@@ -205,4 +209,3 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 }
-

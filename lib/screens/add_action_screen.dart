@@ -18,17 +18,23 @@ class _AddActionScreenState extends State<AddActionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   final _firestoreService = FirestoreService();
-  String _selectedType = 'שיחה אישית';
+  String _selectedType = 'שיחה אישית - הקשבה ותמיכה';
   DateTime? _selectedDate;
   bool _isCompleted = false;
   bool _isLoading = false;
 
   final List<String> _actionTypes = [
-    'שיחה אישית',
-    'פגישת מעקב',
-    'הודעת הוקרה',
-    'הצעת תפקיד/העשרה',
-    'פתק אישי',
+    'שיחה אישית - הקשבה ותמיכה',
+    'פגישת משוב מעצים',
+    'הודעת הוקרה (וואטסאפ/טלפון)',
+    'מכתב הערכה רשמי',
+    'הצעת תפקיד חדש/אחריות',
+    'המלצה להשתלמות/פיתוח מקצועי',
+    'ביקור בשיעור (למידת עמיתים)',
+    'מתנה קטנה/סימן תשומת לב',
+    'עזרה בבעיה אישית/מקצועית',
+    'שיתוף בקבלת החלטות',
+    'ציון יום הולדת/אירוע אישי',
     'אחר',
   ];
 

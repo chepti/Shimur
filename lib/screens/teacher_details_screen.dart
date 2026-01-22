@@ -153,7 +153,58 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                             Icons.work,
                             'וותק כללי: ${teacher.totalSeniorityYears} שנים',
                           ),
-                          if (teacher.notes != null && teacher.notes!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.schedule,
+                            'היקף משרה: ${teacher.workloadPercent}%',
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.sentiment_satisfied_alt,
+                            'שביעות רצון: ${teacher.satisfactionRating}/5',
+                          ),
+                          const SizedBox(height: 4),
+                          _buildInfoRow(
+                            Icons.group,
+                            'תחושת שייכות: ${teacher.belongingRating}/5',
+                          ),
+                          const SizedBox(height: 4),
+                          _buildInfoRow(
+                            Icons.speed,
+                            'עומס: ${teacher.workloadRating}/5',
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.event_busy,
+                            'היעדרויות השנה: ${teacher.absencesThisYear}',
+                          ),
+                          if (teacher.specialActivities.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'פעילויות מיוחדות:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: teacher.specialActivities
+                                  .map(
+                                    (activity) => Chip(
+                                      label: Text(activity),
+                                      backgroundColor:
+                                          const Color(0xFFE3F2FD),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ],
+                          if (teacher.notes != null &&
+                              teacher.notes!.isNotEmpty) ...[
                             const SizedBox(height: 16),
                             const Divider(),
                             const SizedBox(height: 8),

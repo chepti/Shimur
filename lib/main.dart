@@ -4,8 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/login_screen.dart';
 import 'screens/teachers_list_screen.dart';
 import 'screens/tasks_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/add_action_screen.dart';
+import 'screens/add_teacher_screen.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -90,10 +94,12 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  final _firestoreService = FirestoreService();
 
   final List<Widget> _screens = [
     const TeachersListScreen(),
     const TasksScreen(),
+    const DashboardScreen(),
     const SettingsScreen(),
   ];
 
@@ -104,6 +110,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       child: Scaffold(
         body: _screens[_currentIndex],
         bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
           currentIndex: _currentIndex,
           onTap: (index) {
             setState(() {
@@ -122,12 +129,95 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               label: 'משימות',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard),
+              label: 'דשבורד',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.settings),
               label: 'הגדרות',
             ),
           ],
         ),
+        floatingActionButton: _currentIndex != 3 // לא להציג בהגדרות
+            ? FloatingActionButton(
+                onPressed: () => _handleFabPress(context),
+                backgroundColor: const Color(0xFF11a0db),
+                child: const Icon(Icons.add, color: Colors.white),
+              )
+            : null,
       ),
+    );
+  }
+
+  void _handleFabPress(BuildContext context) async {
+    if (_currentIndex == 0) {
+      // אם אנחנו במסך המורים - פתיחת הוספת מורה
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AddTeacherScreen()),
+      );
+    } else if (_currentIndex == 1) {
+      // אם אנחנו במסך המשימות - פתיחת בחירת מורה להוספת פעולה
+      _showTeacherSelection(context);
+    }
+    // בדשבורד והגדרות אין כפתור +
+  }
+
+  void _showTeacherSelection(BuildContext context) async {
+    final teachers = await _firestoreService.getTeachersStream().first;
+    if (!mounted) return;
+
+    if (teachers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('נא להוסיף מורים קודם')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'בחר מורה להוספת פעולה',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: teachers.length,
+                  itemBuilder: (context, index) {
+                    final teacher = teachers[index];
+                    return ListTile(
+                      leading: const Icon(Icons.person, color: Color(0xFF11a0db)),
+                      title: Text(teacher.name),
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddActionScreen(
+                              teacherId: teacher.id,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -9,6 +9,14 @@ class Teacher {
   final String? nextActionDate;
   final String? nextActionType;
 
+  // שדות חדשים
+  final int workloadPercent; // היקף משרה באחוזים (3–116)
+  final int satisfactionRating; // שביעות רצון 1–5
+  final int belongingRating; // תחושת שייכות 1–5
+  final int workloadRating; // עומס 1–5
+  final int absencesThisYear; // היעדרויות השנה
+  final List<String> specialActivities; // פעילויות מיוחדות שסומנו
+
   Teacher({
     required this.id,
     required this.name,
@@ -19,6 +27,12 @@ class Teacher {
     required this.createdAt,
     this.nextActionDate,
     this.nextActionType,
+    this.workloadPercent = 86,
+    this.satisfactionRating = 3,
+    this.belongingRating = 3,
+    this.workloadRating = 3,
+    this.absencesThisYear = 0,
+    this.specialActivities = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -31,6 +45,12 @@ class Teacher {
       'createdAt': createdAt.toIso8601String(),
       'nextActionDate': nextActionDate,
       'nextActionType': nextActionType,
+      'workloadPercent': workloadPercent,
+      'satisfactionRating': satisfactionRating,
+      'belongingRating': belongingRating,
+      'workloadRating': workloadRating,
+      'absencesThisYear': absencesThisYear,
+      'specialActivities': specialActivities,
     };
   }
 
@@ -47,6 +67,12 @@ class Teacher {
           : DateTime.now(),
       nextActionDate: map['nextActionDate'],
       nextActionType: map['nextActionType'],
+      workloadPercent: (map['workloadPercent'] ?? 86).toInt(),
+      satisfactionRating: (map['satisfactionRating'] ?? 3).toInt(),
+      belongingRating: (map['belongingRating'] ?? 3).toInt(),
+      workloadRating: (map['workloadRating'] ?? 3).toInt(),
+      absencesThisYear: (map['absencesThisYear'] ?? 0).toInt(),
+      specialActivities: List<String>.from(map['specialActivities'] ?? const []),
     );
   }
 
@@ -58,6 +84,12 @@ class Teacher {
     String? notes,
     String? nextActionDate,
     String? nextActionType,
+    int? workloadPercent,
+    int? satisfactionRating,
+    int? belongingRating,
+    int? workloadRating,
+    int? absencesThisYear,
+    List<String>? specialActivities,
   }) {
     return Teacher(
       id: id,
@@ -69,6 +101,12 @@ class Teacher {
       createdAt: createdAt,
       nextActionDate: nextActionDate ?? this.nextActionDate,
       nextActionType: nextActionType ?? this.nextActionType,
+      workloadPercent: workloadPercent ?? this.workloadPercent,
+      satisfactionRating: satisfactionRating ?? this.satisfactionRating,
+      belongingRating: belongingRating ?? this.belongingRating,
+      workloadRating: workloadRating ?? this.workloadRating,
+      absencesThisYear: absencesThisYear ?? this.absencesThisYear,
+      specialActivities: specialActivities ?? this.specialActivities,
     );
   }
 }

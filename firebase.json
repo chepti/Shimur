@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"shimur","appId":"1:473831757405:android:ab161f1728b2894be29fb4","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"shimur","configurations":{"android":"1:473831757405:android:ab161f1728b2894be29fb4","web":"1:473831757405:web:996242dfb7903db7e29fb4"}}}}}}
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "shimur",
+          "appId": "1:473831757405:android:ab161f1728b2894be29fb4",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "shimur",
+          "configurations": {
+            "android": "1:473831757405:android:ab161f1728b2894be29fb4",
+            "web": "1:473831757405:web:996242dfb7903db7e29fb4"
+          }
+        }
+      }
+    }
+  }
+}

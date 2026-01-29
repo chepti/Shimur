@@ -164,6 +164,22 @@ firebase deploy --only hosting
 2. ודאי ש-Firebase מוגדר נכון ב-`firebase_options.dart`
 3. נסי לרענן את הדף (Ctrl+F5)
 
+### לא רואים את העדכונים האחרונים ב-Web (גרסה ישנה נטענת)
+זה קורה כי הדפדפן שומר גרסה ישנה ב-cache ו־Service Worker.
+
+**צעד 1 – וודאי שהעלית גרסה חדשה:**
+- הרצי **פעם אחת** את `deploy_web.bat` (לחיצה כפולה) או את הפקודות:
+  - `flutter build web --release`
+  - `firebase deploy --only hosting`
+- חכי עד שהפקודות מסתיימות בהצלחה.
+
+**צעד 2 – ריענון מלא בדפדפן (חובה אחרי כל deploy):**
+- **Chrome / Edge:** פתחי את https://shimur.web.app → `Ctrl+Shift+R` (או `Ctrl+F5`).
+- **או:** F12 → לשונית Application (או Storage) → משמאל "Storage" → "Clear site data" → רענני את הדף.
+- **טלפון:** סגרי את הטאב לגמרי, פתחי מחדש את הקישור (או נקי נתונים של הדפדפן לאתר).
+
+אחרי "Clear site data" או ריענון קשיח – תיטען הגרסה העדכנית מהשרת.
+
 ---
 
 ## 📱 גישה מהטלפון

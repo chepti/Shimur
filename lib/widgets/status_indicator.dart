@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class StatusIndicator extends StatelessWidget {
+  /// יכול לקבל גם ערכי רמזור ישנים (green/yellow/red)
+  /// וגם סטטוס רגשי חדש (bloom/flow/tense/disconnected/burned_out)
   final String status;
   final double size;
 
@@ -12,6 +14,19 @@ class StatusIndicator extends StatelessWidget {
 
   Color get _color {
     switch (status) {
+      // סטטוס רגשי – 5 רמות
+      case 'bloom':
+        return const Color(0xFF40AE49); // ירוק חי
+      case 'flow':
+        return const Color(0xFFB2D234); // ירקרק-צהוב
+      case 'tense':
+        return const Color(0xFFFAA41A); // כתום
+      case 'disconnected':
+        return const Color(0xFFED1C24); // אדום
+      case 'burned_out':
+        return const Color(0xFFAC2B31); // בורדו
+
+      // תמיכה אחורה ברמזור הישן
       case 'green':
         return const Color(0xFF4CAF50);
       case 'yellow':
@@ -23,25 +38,19 @@ class StatusIndicator extends StatelessWidget {
     }
   }
 
-  String get _emoji {
-    switch (status) {
-      case 'green':
-        return '🟢';
-      case 'yellow':
-        return '🟡';
-      case 'red':
-        return '🔴';
-      default:
-        return '⚪';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(_emoji, style: TextStyle(fontSize: size)),
+        Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _color,
+          ),
+        ),
         const SizedBox(width: 4),
       ],
     );

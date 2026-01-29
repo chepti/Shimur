@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html class="light" dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ff6933",
+                        "background-light": "#f8f6f5",
+                        "background-dark": "#23140f",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .ios-shadow {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex items-end">
+<!-- Backdrop Simulation (Simulates the dashboard behind the sheet) -->
+<div class="fixed inset-0 bg-black/40 z-0"></div>
+<!-- Bottom Sheet Container -->
+<div class="relative z-10 w-full max-w-md mx-auto bg-white dark:bg-[#2d1b15] rounded-t-xl overflow-hidden flex flex-col max-h-[90vh]">
+<!-- BottomSheetHandle -->
+<div class="flex h-6 w-full items-center justify-center pt-2">
+<div class="h-1.5 w-12 rounded-full bg-[#ead5cd] dark:bg-primary/20"></div>
+</div>
+<!-- TopAppBar -->
+<div class="flex items-center p-4 pb-4 justify-between border-b border-gray-100 dark:border-gray-800">
+<h2 class="text-[#1d110c] dark:text-white text-xl font-bold leading-tight tracking-[-0.015em] flex-1">
+                למי אמרת מילה טובה? 💚
+            </h2>
+<button class="text-[#1d110c] dark:text-white flex size-10 shrink-0 items-center justify-center bg-gray-100 dark:bg-white/10 rounded-full">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Search Bar (Custom addition for better UX) -->
+<div class="px-4 py-3">
+<div class="relative flex items-center bg-gray-50 dark:bg-white/5 rounded-xl px-3 py-2 border border-gray-100 dark:border-gray-800">
+<span class="material-symbols-outlined text-gray-400 mr-1 ml-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full text-right font-display" dir="rtl" placeholder="חיפוש מורה..." type="text"/>
+</div>
+</div>
+<!-- Teacher List Area -->
+<div class="flex-1 overflow-y-auto px-4 pb-10 space-y-3">
+<!-- ListItem: Rachel Cohen (Green Theme) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#e8f5e9] dark:bg-green-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with green background">
+                        👩‍🏫
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">רחל כהן</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">מחנכת כיתה ב'2</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+<!-- ListItem: Avi Levi (Orange Theme) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#fff3e0] dark:bg-orange-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with orange background">
+                        👨‍🔬
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">אבי לוי</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">מורה למדעים</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+<!-- ListItem: Michal Rafael (Blue Theme) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#e3f2fd] dark:bg-blue-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with blue background">
+                        🎨
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">מיכל רפאל</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">מורה לאמנות</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+<!-- ListItem: Dan Shabat (Coral Theme) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#ffebee] dark:bg-red-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with coral background">
+                        ⚽
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">דן שבת</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">מורה לחינוך גופני</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+<!-- ListItem: Noa Arad (Yellow Theme) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#fffde7] dark:bg-yellow-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with yellow background">
+                        📚
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">נועה ארד</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">ספרנית ביה"ס</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+<!-- ListItem: Yosi Biton (Green Theme rotation) -->
+<div class="flex items-center gap-4 bg-white dark:bg-white/5 p-3 rounded-[12px] ios-shadow border border-gray-50 dark:border-white/5 active:scale-[0.98] transition-transform">
+<div class="flex items-center gap-4 flex-1">
+<div class="flex items-center justify-center bg-[#e8f5e9] dark:bg-green-900/30 text-2xl aspect-square h-12 w-12 rounded-full" data-alt="Teacher portrait with light green background">
+                        🎸
+                    </div>
+<div class="flex flex-col">
+<p class="text-[#1d110c] dark:text-white text-base font-semibold leading-normal truncate">יוסי ביטון</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs">מורה למוזיקה</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="text-primary flex size-8 items-center justify-center">
+<span class="material-symbols-outlined">chevron_left</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Safe Area Spacer -->
+<div class="h-8 bg-white dark:bg-[#2d1b15]"></div>
+</div>
+</body></html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html class="light" dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hever - Weekly Progress &amp; Stats</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Noto+Sans+Hebrew:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ff6933",
+                        "background-light": "#f8f6f5",
+                        "background-dark": "#23140f",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "Noto Sans Hebrew", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans Hebrew', sans-serif;
+        }
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen">
+<div class="relative flex h-auto min-h-screen w-full max-w-[480px] mx-auto flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden pb-20">
+<!-- TopAppBar -->
+<div class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between sticky top-0 z-50">
+<div class="text-background-dark dark:text-background-light flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined">arrow_forward</span>
+</div>
+<h2 class="text-background-dark dark:text-background-light text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">השבוע שלך 🌟</h2>
+<div class="flex w-12 items-center justify-end">
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 bg-transparent text-background-dark dark:text-background-light gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+<!-- HeaderImage / Hero Banner -->
+<div class="@container">
+<div class="px-4 py-3">
+<div class="bg-gradient-to-br from-[#ff6933] via-[#ff8a5c] to-[#ffb38a] flex flex-col justify-center items-center overflow-hidden rounded-xl min-h-[220px] shadow-lg shadow-primary/20" data-alt="vibrant orange and pink abstract gradient background">
+<div class="text-center">
+<p class="text-white/90 text-xl font-medium mb-1">הספקת כבר</p>
+<h1 class="text-white text-[84px] font-extrabold leading-none mb-1">23</h1>
+<p class="text-white text-2xl font-bold tracking-wide">מילים טובות</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-3 gap-3 p-4">
+<div class="flex flex-col items-center justify-center gap-2 rounded-xl p-4 border border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<span class="text-3xl">🔥</span>
+<p class="text-background-dark dark:text-background-light text-sm font-bold leading-tight text-center">5 ימים ברצף</p>
+</div>
+<div class="flex flex-col items-center justify-center gap-2 rounded-xl p-4 border border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<span class="text-3xl">⭐</span>
+<p class="text-background-dark dark:text-background-light text-sm font-bold leading-tight text-center">18 מורים היום</p>
+</div>
+<div class="flex flex-col items-center justify-center gap-2 rounded-xl p-4 border border-primary/20 bg-white dark:bg-background-dark shadow-sm">
+<span class="text-3xl">🎯</span>
+<p class="text-background-dark dark:text-background-light text-sm font-bold leading-tight text-center">100% כיסוי</p>
+</div>
+</div>
+<!-- SectionHeader: Weekly Goal -->
+<div class="flex items-center justify-between px-4 pt-4 pb-1">
+<h2 class="text-background-dark dark:text-background-light text-[22px] font-extrabold leading-tight tracking-[-0.015em]">המטרה השבועית</h2>
+<span class="text-primary text-sm font-bold">צפייה בפירוט</span>
+</div>
+<!-- Activity Rings Card -->
+<div class="p-4">
+<div class="bg-white dark:bg-[#2d1b15] rounded-xl p-6 shadow-sm border border-black/5 flex items-center justify-around">
+<!-- Circular Rings Visual -->
+<div class="relative w-40 h-40 flex items-center justify-center">
+<!-- Outer Ring: Frequency -->
+<svg class="absolute w-full h-full" viewbox="0 0 100 100">
+<circle class="text-primary/10" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-width="10"></circle>
+<circle class="text-primary progress-ring-circle" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="50.24" stroke-linecap="round" stroke-width="10"></circle>
+</svg>
+<!-- Middle Ring: Coverage -->
+<svg class="absolute w-[76%] h-[76%]" viewbox="0 0 100 100">
+<circle class="text-[#33cc99]/10" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-[#33cc99] progress-ring-circle" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="25.12" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<!-- Inner Ring: Quality -->
+<svg class="absolute w-[52%] h-[52%]" viewbox="0 0 100 100">
+<circle class="text-[#ffcc33]/10" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-width="16"></circle>
+<circle class="text-[#ffcc33] progress-ring-circle" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" stroke-dasharray="251.2" stroke-dashoffset="125.6" stroke-linecap="round" stroke-width="16"></circle>
+</svg>
+<span class="material-symbols-outlined text-background-dark dark:text-white text-3xl">trending_up</span>
+</div>
+<!-- Legend -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-2">
+<div class="size-3 rounded-full bg-primary"></div>
+<span class="text-sm font-bold text-background-dark dark:text-background-light">תדירות</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="size-3 rounded-full bg-[#33cc99]"></div>
+<span class="text-sm font-bold text-background-dark dark:text-background-light">כיסוי</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="size-3 rounded-full bg-[#ffcc33]"></div>
+<span class="text-sm font-bold text-background-dark dark:text-background-light">איכות</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SectionHeader: Badges -->
+<h2 class="text-background-dark dark:text-background-light text-[22px] font-extrabold leading-tight tracking-[-0.015em] px-4 pb-3 pt-4">הישגים אחרונים</h2>
+<!-- Badges Section -->
+<div class="flex gap-4 px-4 pb-6 overflow-x-auto no-scrollbar">
+<!-- Unlocked Badge -->
+<div class="flex flex-col items-center gap-2 min-w-[100px]">
+<div class="size-20 rounded-full bg-gradient-to-t from-orange-400 to-yellow-200 p-1 shadow-md">
+<div class="w-full h-full rounded-full bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-orange-500" style="font-variation-settings: 'FILL' 1">workspace_premium</span>
+</div>
+</div>
+<p class="text-sm font-bold text-background-dark dark:text-background-light text-center">שבוע מושלם</p>
+</div>
+<!-- Locked Badge -->
+<div class="flex flex-col items-center gap-2 min-w-[100px] opacity-40 grayscale">
+<div class="size-20 rounded-full bg-slate-200 p-1">
+<div class="w-full h-full rounded-full bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-slate-400">military_tech</span>
+</div>
+</div>
+<p class="text-sm font-bold text-background-dark dark:text-background-light text-center">סופר מנטור</p>
+</div>
+<!-- Locked Badge 2 -->
+<div class="flex flex-col items-center gap-2 min-w-[100px] opacity-40 grayscale">
+<div class="size-20 rounded-full bg-slate-200 p-1">
+<div class="w-full h-full rounded-full bg-white flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-slate-400">stars</span>
+</div>
+</div>
+<p class="text-sm font-bold text-background-dark dark:text-background-light text-center">חלוץ המערכת</p>
+</div>
+</div>
+<!-- Bottom Navigation (iOS Style) -->
+<div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/80 dark:bg-background-dark/80 backdrop-blur-lg border-t border-black/5 flex justify-around p-3 pb-6 z-50">
+<div class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">leaderboard</span>
+<span class="text-[10px] font-bold">הישגים</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-background-dark/40 dark:text-background-light/40">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold">מורים</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-background-dark/40 dark:text-background-light/40">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="text-[10px] font-bold">משוב</span>
+</div>
+<div class="flex flex-col items-center gap-1 text-background-dark/40 dark:text-background-light/40">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold">פרופיל</span>
+</div>
+</div>
+</div>
+</body></html>

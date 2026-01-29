@@ -8,7 +8,7 @@ Write-Host "`nAdding all changes..." -ForegroundColor Cyan
 git add .
 
 Write-Host "`nCommitting changes..." -ForegroundColor Cyan
-git commit -m "Add dashboard screen, fix dropdown error, add deployment configuration"
+git commit -m "Update SHIMUR: manager settings, engagement survey, weekly summary, Hebrew date widget, Firestore and UI"
 
 Write-Host "`nPushing to GitHub..." -ForegroundColor Cyan
 git push origin main

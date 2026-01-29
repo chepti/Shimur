@@ -3,7 +3,11 @@ import '../models/teacher.dart';
 import '../services/firestore_service.dart';
 
 class AddTeacherScreen extends StatefulWidget {
-  const AddTeacherScreen({Key? key}) : super(key: key);
+  final Teacher? teacher;
+
+  const AddTeacherScreen({Key? key, this.teacher}) : super(key: key);
+
+  bool get isEditMode => teacher != null;
 
   @override
   State<AddTeacherScreen> createState() => _AddTeacherScreenState();
@@ -12,34 +16,50 @@ class AddTeacherScreen extends StatefulWidget {
 class _AddTeacherScreenState extends State<AddTeacherScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _seniorityController = TextEditingController();
-  final _totalSeniorityController = TextEditingController();
+  final _roleController = TextEditingController();
   final _notesController = TextEditingController();
-  final _absencesController = TextEditingController();
   final _firestoreService = FirestoreService();
+  // סטטוס רמזור ישן (סיכון/מעקב/יציב) – נשמר לסטטיסטיקות
   String _selectedStatus = 'green';
+  // סטטוס רגשי חדש עם 5 רמות (פורח/זורם/מתוח/מנותק/שחוק)
+  String _selectedMoodStatus = 'flow';
   bool _isLoading = false;
-  double _workloadPercent = 86; // ברירת מחדל 86%
-  double _satisfactionRating = 3;
-  double _belongingRating = 3;
-  double _workloadRating = 3;
-  final Set<String> _selectedActivities = {};
-  final TextEditingController _newActivityController = TextEditingController();
+  // זמני עומס
+  final Set<String> _busyWeekdays = {}; // ימים עמוסים בשבוע
+  DateTimeRange? _busySeasonRange; // תקופת עומס בשנה
+  final TextEditingController _busyReasonController = TextEditingController();
+  String? _initialBusySeasonText;
+  // סגנון מוטיבציה – ניתן לבחור יותר מאחד
+  final Set<String> _selectedMotivationStyles = {};
+  // תובנות/סימני מעורבות (לפי גאלופ)
+  final Set<String> _selectedEngagementSignals = {};
 
-  static const List<String> _baseActivities = [
-    'רכז',
-    'ליווי טיול',
-    'טקס',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final teacher = widget.teacher;
+    if (teacher != null) {
+      _nameController.text = teacher.name;
+      _roleController.text = teacher.roles.join(', ');
+      _notesController.text = teacher.notes ?? '';
+      _selectedStatus = teacher.status;
+      _selectedMoodStatus = teacher.moodStatus ?? _selectedMoodStatus;
+      _busyWeekdays.addAll(teacher.busyWeekdays);
+      _initialBusySeasonText = teacher.busySeason;
+      if (teacher.busyReason != null) {
+        _busyReasonController.text = teacher.busyReason!;
+      }
+      _selectedMotivationStyles.addAll(teacher.motivationStyles);
+      _selectedEngagementSignals.addAll(teacher.engagementSignals);
+    }
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _seniorityController.dispose();
-    _totalSeniorityController.dispose();
+    _roleController.dispose();
     _notesController.dispose();
-    _absencesController.dispose();
-    _newActivityController.dispose();
+    _busyReasonController.dispose();
     super.dispose();
   }
 
@@ -49,31 +69,67 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final teacher = Teacher(
-        id: '', // יווצר אוטומטית ב-Firestore
-        name: _nameController.text.trim(),
-        seniorityYears: int.parse(_seniorityController.text),
-        totalSeniorityYears: int.parse(_totalSeniorityController.text),
-        status: _selectedStatus,
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        createdAt: DateTime.now(),
-        workloadPercent: _workloadPercent.toInt(),
-        satisfactionRating: _satisfactionRating.toInt(),
-        belongingRating: _belongingRating.toInt(),
-        workloadRating: _workloadRating.toInt(),
-        absencesThisYear: int.tryParse(_absencesController.text.trim()) ?? 0,
-        specialActivities: _selectedActivities.toList(),
-      );
+      final name = _nameController.text.trim();
+      final roleText = _roleController.text.trim();
+      final roles = roleText.isEmpty
+          ? <String>[]
+          : roleText
+              .split(',')
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty)
+              .toList();
+      final notesText = _notesController.text.trim();
+      final busyReasonText = _busyReasonController.text.trim();
+      final busySeasonText = _busySeasonRange == null
+          ? _initialBusySeasonText
+          : _formatBusySeason(_busySeasonRange!);
 
-      await _firestoreService.addTeacher(teacher);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('המורה נוסף בהצלחה!')),
+      if (widget.teacher == null) {
+        final teacher = Teacher(
+          id: '', // יווצר אוטומטית ב-Firestore
+          name: name,
+          seniorityYears: 0, // יגיעו בעתיד ממערכות משרד החינוך
+          totalSeniorityYears: 0,
+          roles: roles,
+          status: _selectedStatus,
+          notes: notesText.isEmpty ? null : notesText,
+          createdAt: DateTime.now(),
+          busyWeekdays: _busyWeekdays.toList(),
+          busySeason: busySeasonText,
+          busyReason: busyReasonText.isEmpty ? null : busyReasonText,
+          motivationStyles: _selectedMotivationStyles.toList(),
+          engagementSignals: _selectedEngagementSignals.toList(),
         );
-        Navigator.pop(context);
+
+        await _firestoreService.addTeacher(teacher);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('המורה נוסף בהצלחה!')),
+          );
+          Navigator.pop(context, true);
+        }
+      } else {
+        final updatedTeacher = widget.teacher!.copyWith(
+          name: name,
+          roles: roles,
+          status: _selectedStatus,
+          notes: notesText.isEmpty ? null : notesText,
+          busyWeekdays: _busyWeekdays.toList(),
+          busySeason: busySeasonText,
+          busyReason: busyReasonText.isEmpty ? null : busyReasonText,
+          motivationStyles: _selectedMotivationStyles.toList(),
+          engagementSignals: _selectedEngagementSignals.toList(),
+        );
+
+        await _firestoreService.updateTeacher(updatedTeacher);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('פרטי המורה עודכנו בהצלחה!')),
+          );
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -94,7 +150,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('הוספת מורה'),
+          title: Text(widget.isEditMode ? 'עריכת מורה' : 'הוספת מורה'),
           backgroundColor: const Color(0xFF11a0db),
           foregroundColor: Colors.white,
         ),
@@ -105,6 +161,25 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'בואי נכיר את המורים שלך',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'כמה פרטים שיעזרו לנו לתמוך בהם בזמן הנכון ובדרך הנכונה.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
@@ -125,125 +200,20 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller: _seniorityController,
+                  controller: _roleController,
                   decoration: InputDecoration(
-                    labelText: 'וותק בבית הספר (שנים) *',
-                    prefixIcon: const Icon(Icons.calendar_today),
+                    labelText: 'תפקיד (למשל מחנכת, רכזת שכבה)',
+                    prefixIcon: const Icon(Icons.badge_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'נא להזין וותק';
-                    }
-                    if (int.tryParse(value) == null) {
-                      return 'נא להזין מספר תקין';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _totalSeniorityController,
-                  decoration: InputDecoration(
-                    labelText: 'וותק כללי (שנים) *',
-                    prefixIcon: const Icon(Icons.work),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'נא להזין וותק כללי';
-                    }
-                    if (int.tryParse(value) == null) {
-                      return 'נא להזין מספר תקין';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
                 const Text(
-                  'היקף משרה',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: _workloadPercent,
-                        min: 3,
-                        max: 116,
-                        divisions: 113,
-                        label: '${_workloadPercent.toInt()}%',
-                        onChanged: (value) {
-                          setState(() => _workloadPercent = value);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 60,
-                      child: Text(
-                        '${_workloadPercent.toInt()}%',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'דירוגים (1–5)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildRatingRow('שביעות רצון', _satisfactionRating,
-                    (v) => setState(() => _satisfactionRating = v)),
-                _buildRatingRow('תחושת שייכות', _belongingRating,
-                    (v) => setState(() => _belongingRating = v)),
-                _buildRatingRow('עומס', _workloadRating,
-                    (v) => setState(() => _workloadRating = v)),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _absencesController,
-                  decoration: InputDecoration(
-                    labelText: 'היעדרויות השנה',
-                    prefixIcon: const Icon(Icons.event_busy),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return null; // אופציונלי
-                    }
-                    if (int.tryParse(value.trim()) == null) {
-                      return 'נא להזין מספר תקין';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'פעילויות מיוחדות',
+                  'מתי הם בלחץ? *',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -252,57 +222,99 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
+                  children: _buildWeekdayChips(),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'תקופות עמוסות בשנה',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final now = DateTime.now();
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(now.year - 1),
+                      lastDate: DateTime(now.year + 1),
+                      initialDateRange: _busySeasonRange ??
+                          DateTimeRange(
+                            start: now,
+                            end: now.add(const Duration(days: 14)),
+                          ),
+                    );
+                    if (range != null) {
+                      setState(() => _busySeasonRange = range);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_today),
+                  label: Text(
+                    _busySeasonRange == null
+                        ? (_initialBusySeasonText ??
+                            'בחרי תקופה עמוסה (למשל לפני בגרויות)')
+                        : _formatBusySeason(_busySeasonRange!),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _busyReasonController,
+                  decoration: InputDecoration(
+                    labelText: 'כותרת/סיבת העומס (למשל "בחינות בגרות")',
+                    prefixIcon: const Icon(Icons.label_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
                   children: [
-                    ...{..._baseActivities, ..._selectedActivities}.map(
-                      (activity) => FilterChip(
-                        label: Text(activity),
-                        selected: _selectedActivities.contains(activity),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedActivities.add(activity);
-                            } else {
-                              _selectedActivities.remove(activity);
-                            }
-                          });
-                        },
+                    const Expanded(
+                      child: Text(
+                        'סגנון מוטיבציה',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.help_outline, size: 20),
+                      color: Colors.grey[600],
+                      padding: EdgeInsets.zero,
+                      onPressed: _showMotivationHelp,
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _newActivityController,
-                        decoration: InputDecoration(
-                          labelText: 'הוסף פעילות מיוחדת',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle,
-                          color: Color(0xFF11a0db)),
-                      onPressed: () {
-                        final text = _newActivityController.text.trim();
-                        if (text.isEmpty) return;
-                        setState(() {
-                          _selectedActivities.add(text);
-                          _newActivityController.clear();
-                        });
-                      },
-                    ),
-                  ],
+                _buildMotivationGrid(),
+                const SizedBox(height: 8),
+                const Text(
+                  'מדד מעורבות',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _buildEngagementChips(),
+                ),
+                const SizedBox(height: 24),
                 const Text(
                   'סטטוס *',
                   style: TextStyle(
@@ -311,20 +323,10 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatusOption('green', '🟢 יציב'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatusOption('yellow', '🟡 מעקב'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatusOption('red', '🔴 סיכון'),
-                    ),
-                  ],
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _buildMoodStatusChips(),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -375,82 +377,262 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     );
   }
 
-  Widget _buildStatusOption(String status, String label) {
-    final isSelected = _selectedStatus == status;
+  List<Widget> _buildMoodStatusChips() {
+    const options = {
+      'bloom': 'פורח',
+      'flow': 'זורם',
+      'tense': 'מתוח',
+      'disconnected': 'מנותק',
+      'burned_out': 'שחוק',
+    };
+
+    Color colorForMood(String key) {
+      switch (key) {
+        case 'bloom':
+          return const Color(0xFF40AE49);
+        case 'flow':
+          return const Color(0xFFB2D234);
+        case 'tense':
+          return const Color(0xFFFAA41A);
+        case 'disconnected':
+          return const Color(0xFFED1C24);
+        case 'burned_out':
+          return const Color(0xFFAC2B31);
+        default:
+          return Colors.grey;
+      }
+    }
+
+    return options.entries.map((entry) {
+      final isSelected = _selectedMoodStatus == entry.key;
+      final color = colorForMood(entry.key);
+      return ChoiceChip(
+        label: Text(entry.value),
+        selected: isSelected,
+        selectedColor: color.withOpacity(0.15),
+        labelStyle: TextStyle(
+          color: isSelected ? color : Colors.grey[800],
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        ),
+        onSelected: (selected) {
+          setState(() {
+            _selectedMoodStatus = selected ? entry.key : _selectedMoodStatus;
+            _selectedStatus = _mapMoodToTrafficLight(_selectedMoodStatus);
+          });
+        },
+      );
+    }).toList();
+  }
+
+  String _mapMoodToTrafficLight(String mood) {
+    switch (mood) {
+      case 'bloom':
+      case 'flow':
+        return 'green';
+      case 'tense':
+        return 'yellow';
+      case 'disconnected':
+      case 'burned_out':
+        return 'red';
+      default:
+        return 'green';
+    }
+  }
+
+  List<Widget> _buildWeekdayChips() {
+    const days = ['א', 'ב', 'ג', 'ד', 'ה', 'ו'];
+    return days
+        .map(
+          (day) => FilterChip(
+            label: Text(day),
+            selected: _busyWeekdays.contains(day),
+            onSelected: (selected) {
+              setState(() {
+                if (selected) {
+                  _busyWeekdays.add(day);
+                } else {
+                  _busyWeekdays.remove(day);
+                }
+              });
+            },
+          ),
+        )
+        .toList();
+  }
+
+  String _formatBusySeason(DateTimeRange range) {
+    final start = range.start;
+    final end = range.end;
+    return '${start.day}.${start.month}–${end.day}.${end.month}';
+  }
+
+  Widget _buildMotivationTile({
+    required String keyValue,
+    required String title,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedMotivationStyles.contains(keyValue);
     return InkWell(
-      onTap: () => setState(() => _selectedStatus = status),
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedMotivationStyles.remove(keyValue);
+          } else {
+            _selectedMotivationStyles.add(keyValue);
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? _getStatusColor(status).withOpacity(0.15)
-              : Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? const Color(0xFFFFF3EB) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? _getStatusColor(status).withOpacity(0.6)
-                : Colors.grey[300]!,
+                ? const Color(0xFFF36F21)
+                : Colors.grey[300] ?? Colors.grey,
             width: isSelected ? 2 : 1,
           ),
         ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
               color: isSelected
-                  ? _getStatusColor(status)
-                  : Colors.grey[600],
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 14,
+                  ? const Color(0xFFF36F21)
+                  : const Color(0xFF11a0db),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'green':
-        return const Color(0xFF4CAF50);
-      case 'yellow':
-        return const Color(0xFFFFC107);
-      case 'red':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _buildRatingRow(
-      String label, double value, ValueChanged<double> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildMotivationGrid() {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+      childAspectRatio: 1.2,
       children: [
-        Text(label),
-        Row(
-          children: [
-            Expanded(
-              child: Slider(
-                value: value,
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: value.toInt().toString(),
-                onChanged: onChanged,
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 24,
-              child: Text(
-                value.toInt().toString(),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
+        _buildMotivationTile(
+          keyValue: 'gregariousness',
+          title: 'חברותיות',
+          icon: Icons.chat_bubble_outline,
+        ),
+        _buildMotivationTile(
+          keyValue: 'autonomy',
+          title: 'אוטונומיה',
+          icon: Icons.flight_takeoff,
+        ),
+        _buildMotivationTile(
+          keyValue: 'status',
+          title: 'סטטוס',
+          icon: Icons.star_border,
+        ),
+        _buildMotivationTile(
+          keyValue: 'inquisitiveness',
+          title: 'סקרנות',
+          icon: Icons.lightbulb_outline,
+        ),
+        _buildMotivationTile(
+          keyValue: 'power',
+          title: 'כוח',
+          icon: Icons.bolt,
+        ),
+        _buildMotivationTile(
+          keyValue: 'affiliation',
+          title: 'שייכות אישית',
+          icon: Icons.card_giftcard,
         ),
       ],
+    );
+  }
+
+  List<Widget> _buildEngagementChips() {
+    const options = [
+      'צרכים בסיסיים',
+      'תרומה אישית',
+      'שייכות לצוות',
+      'צמיחה אישית',
+    ];
+    return options
+        .map(
+          (label) => FilterChip(
+            label: Text(label),
+            selected: _selectedEngagementSignals.contains(label),
+            onSelected: (selected) {
+              setState(() {
+                if (selected) {
+                  _selectedEngagementSignals.add(label);
+                } else {
+                  _selectedEngagementSignals.remove(label);
+                }
+              });
+            },
+          ),
+        )
+        .toList();
+  }
+
+  void _showMotivationHelp() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('6 סוגי המוטיבציה (ריק לאבוי)'),
+            content: const SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• חברותיות – הצורך להשתייך לקבוצה, ליהנות מעבודה בצוות ומאינטראקציה חברתית.',
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• אוטונומיה – הצורך בעצמאות, שליטה על תהליכי העבודה וחופש פעולה.',
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• סטטוס – הצורך בהכרה ציבורית, מעמד, פרסים והערכה פומבית על הישגים.',
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• סקרנות – הצורך ברכישת ידע חדש, חקירה, גילוי וצמיחה אינטלקטואלית.',
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• כוח – הצורך בהשפעה, סמכות, מנהיגות ונטילת חלק בקבלת החלטות.',
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '• שייכות אישית – הצורך בקשר אישי חם, תמיכה רגשית, אמפתיה ועידוד מהמנהל.',
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('סגור'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

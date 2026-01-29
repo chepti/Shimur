@@ -11,7 +11,7 @@ git add .
 
 echo.
 echo Committing changes...
-git commit -m "Add dashboard screen, fix dropdown error, add deployment configuration"
+git commit -m "Update SHIMUR: manager settings, engagement survey, weekly summary, Hebrew date widget, Firestore and UI"
 
 echo.
 echo Pushing to GitHub...

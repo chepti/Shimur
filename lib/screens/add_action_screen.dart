@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart' hide Action;
 import '../models/action.dart';
 import '../services/firestore_service.dart';
+import '../widgets/hebrew_gregorian_date.dart';
 
 class AddActionScreen extends StatefulWidget {
   final String teacherId;
+  /// אופציונלי: סוג פעולה מוצע (למשל מסיכום שבוע)
+  final String? suggestedType;
 
   const AddActionScreen({
     Key? key,
     required this.teacherId,
+    this.suggestedType,
   }) : super(key: key);
 
   @override
@@ -18,7 +22,7 @@ class _AddActionScreenState extends State<AddActionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   final _firestoreService = FirestoreService();
-  String _selectedType = 'שיחה אישית - הקשבה ותמיכה';
+  late String _selectedType;
   DateTime? _selectedDate;
   bool _isCompleted = false;
   bool _isLoading = false;
@@ -37,6 +41,22 @@ class _AddActionScreenState extends State<AddActionScreen> {
     'ציון יום הולדת/אירוע אישי',
     'אחר',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final suggested = widget.suggestedType?.trim();
+    if (suggested != null && suggested.isNotEmpty) {
+      if (_actionTypes.contains(suggested)) {
+        _selectedType = suggested;
+      } else {
+        _selectedType = 'אחר';
+        _notesController.text = suggested;
+      }
+    } else {
+      _selectedType = 'שיחה אישית - הקשבה ותמיכה';
+    }
+  }
 
   @override
   void dispose() {
@@ -168,30 +188,21 @@ class _AddActionScreenState extends State<AddActionScreen> {
                       children: [
                         const Icon(Icons.calendar_today),
                         const SizedBox(width: 12),
-                        Text(
-                          _selectedDate == null
-                              ? 'בחר תאריך'
-                              : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                          style: TextStyle(
-                            color: _selectedDate == null
-                                ? Colors.grey[600]
-                                : Colors.black,
+                        if (_selectedDate == null)
+                          Text(
+                            'בחר תאריך',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                            ),
+                          )
+                        else
+                          HebrewGregorianDateText(
+                            date: _selectedDate!,
                           ),
-                        ),
                       ],
                     ),
                   ),
                 ),
-                if (_selectedDate != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'תאריך עברי: ${_getHebrewDate(_selectedDate!)}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _notesController,
@@ -248,26 +259,6 @@ class _AddActionScreenState extends State<AddActionScreen> {
         ),
       ),
     );
-  }
-
-  String _getHebrewDate(DateTime date) {
-    // פונקציה פשוטה להצגת תאריך עברי בסיסי
-    // ניתן להוסיף ספרייה מתאימה לעברי מלא
-    const months = [
-      'ינואר',
-      'פברואר',
-      'מרץ',
-      'אפריל',
-      'מאי',
-      'יוני',
-      'יולי',
-      'אוגוסט',
-      'ספטמבר',
-      'אוקטובר',
-      'נובמבר',
-      'דצמבר',
-    ];
-    return '${date.day} ב${months[date.month - 1]}';
   }
 }
 

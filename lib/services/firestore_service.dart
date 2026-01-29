@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
 import '../models/action.dart';
+import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 
 class FirestoreService {
@@ -8,7 +9,6 @@ class FirestoreService {
   final AuthService _authService = AuthService();
 
   String? get _currentUserId => _authService.currentUserId;
-  String? get _schoolId => _currentUserId; // ב-MVP: schoolId = userId
 
   // ========== Schools ==========
   Future<void> createSchool(String schoolSymbol, String schoolName) async {
@@ -116,6 +116,73 @@ class FirestoreService {
     });
   }
 
+  /// ספירת כל הפעולות שהושלמו היום (למדד היומי במסך הבית).
+  /// כרגע נספרות כל הפעולות שסומנו כ-completed בתאריך של היום,
+  /// ללא סינון לפי סוג – כדי לתת תחושת התקדמות כללית.
+  Future<int> getTodayCompletedActionsCount() async {
+    if (_currentUserId == null) return 0;
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final startIso = startOfDay.toIso8601String();
+    final endIso = endOfDay.toIso8601String();
+
+    int totalCount = 0;
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    for (var teacherDoc in teachersSnapshot.docs) {
+      final actionsSnapshot = await teacherDoc.reference
+          .collection('actions')
+          .where('completed', isEqualTo: true)
+          .where('date', isGreaterThanOrEqualTo: startIso)
+          .where('date', isLessThan: endIso)
+          .get();
+
+      totalCount += actionsSnapshot.size;
+    }
+
+    return totalCount;
+  }
+
+  /// מחזיר מזהי מורים שהייתה להם לפחות פעולה אחת (התייחסות מתועדת) השבוע הנוכחי (ראשון–שבת).
+  Future<Set<String>> getTeacherIdsWithActionsInCurrentWeek() async {
+    if (_currentUserId == null) return {};
+
+    final now = DateTime.now();
+    final daysSinceSunday = now.weekday == 7 ? 0 : now.weekday;
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysSinceSunday));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+    final startIso = startOfWeek.toIso8601String();
+    final endIso = endOfWeek.toIso8601String();
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    final ids = <String>{};
+    for (var teacherDoc in teachersSnapshot.docs) {
+      final actionsSnapshot = await teacherDoc.reference
+          .collection('actions')
+          .where('date', isGreaterThanOrEqualTo: startIso)
+          .where('date', isLessThan: endIso)
+          .limit(1)
+          .get();
+      if (actionsSnapshot.docs.isNotEmpty) {
+        ids.add(teacherDoc.id);
+      }
+    }
+    return ids;
+  }
+
   Future<List<Map<String, dynamic>>> getAllUpcomingActions({bool thisWeekOnly = false}) async {
     if (_currentUserId == null) return [];
     
@@ -156,14 +223,20 @@ class FirestoreService {
 
   Future<void> addAction(String teacherId, Action action) async {
     if (_currentUserId == null) throw Exception('לא מחובר');
-    
-    await _firestore
+
+    final teacherRef = _firestore
         .collection('schools')
         .doc(_currentUserId)
         .collection('teachers')
-        .doc(teacherId)
-        .collection('actions')
-        .add(action.toMap());
+        .doc(teacherId);
+
+    // הוספת הפעולה עצמה
+    await teacherRef.collection('actions').add(action.toMap());
+
+    // עדכון תאריך אינטראקציה אחרונה למורה
+    await teacherRef.update({
+      'lastInteractionDate': action.date.toIso8601String(),
+    });
   }
 
   Future<void> updateAction(String teacherId, Action action) async {
@@ -181,18 +254,48 @@ class FirestoreService {
 
   Future<Teacher?> getTeacher(String teacherId) async {
     if (_currentUserId == null) return null;
-    
+
     final doc = await _firestore
         .collection('schools')
         .doc(_currentUserId)
         .collection('teachers')
         .doc(teacherId)
         .get();
-    
+
     if (doc.exists) {
       return Teacher.fromMap(doc.id, doc.data()!);
     }
     return null;
+  }
+
+  // ========== הגדרות מנהל ==========
+  static const String _managerSettingsDocId = 'manager';
+
+  Future<ManagerSettings> getManagerSettings() async {
+    if (_currentUserId == null) return const ManagerSettings();
+
+    final doc = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('settings')
+        .doc(_managerSettingsDocId)
+        .get();
+
+    if (doc.exists && doc.data() != null) {
+      return ManagerSettings.fromMap(doc.data());
+    }
+    return const ManagerSettings();
+  }
+
+  Future<void> updateManagerSettings(ManagerSettings settings) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('settings')
+        .doc(_managerSettingsDocId)
+        .set(settings.toMap());
   }
 }
 

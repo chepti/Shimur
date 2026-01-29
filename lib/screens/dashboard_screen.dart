@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import 'weekly_start_notification_screen.dart';
+import 'weekly_summary_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -53,6 +55,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // התראה לתחילת השבוע + סיכום שבוע
+                  _buildWeeklyNotificationCard(context),
+                  const SizedBox(height: 12),
+                  _buildWeeklySummaryCard(context),
+                  const SizedBox(height: 16),
                   // כרטיסי סיכום
                   Row(
                     children: [
@@ -134,6 +141,120 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyNotificationCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const WeeklyStartNotificationScreen(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: const Color(0xFF11a0db).withOpacity(0.2),
+                child: const Icon(
+                  Icons.notifications_active,
+                  color: Color(0xFF11a0db),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'התראה לתחילת השבוע',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'פגישות מומלצות, מילים טובות והעתקה למזכירה',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_left, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklySummaryCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const WeeklySummaryScreen(),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.amber.withOpacity(0.3),
+                child: Icon(Icons.weekend, color: Colors.amber[800], size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'סיכום שבוע',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'סיווג התייחסות, עדכון סטטוס רגשי והיגדים לפעולה',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_left, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );

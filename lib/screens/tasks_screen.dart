@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart' hide Action;
 import '../models/action.dart';
 import '../services/firestore_service.dart';
-import '../services/auth_service.dart';
-import 'add_action_screen.dart';
+import '../widgets/hebrew_gregorian_date.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({Key? key}) : super(key: key);
@@ -177,8 +176,8 @@ class _TasksScreenState extends State<TasksScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                Text(
-                                  '${action.date.day}/${action.date.month}/${action.date.year}',
+                                HebrewGregorianDateText(
+                                  date: action.date,
                                 ),
                                 if (action.notes != null &&
                                     action.notes!.isNotEmpty)

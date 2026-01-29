@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+
+<html class="light" dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#ff6933",
+            "background-light": "#f8f6f5",
+            "background-dark": "#23140f",
+            "success-green": "#22c55e"
+          },
+          fontFamily: {
+            "display": ["Plus Jakarta Sans", "sans-serif"]
+          },
+          borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Plus Jakarta Sans', "Noto Sans Hebrew", sans-serif;
+    }
+    /* Simple CSS for decorative confetti dots */
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display overflow-hidden">
+<!-- Background Content (Simulating the Dashboard behind the overlay) -->
+<div class="relative flex h-screen w-full flex-col opacity-30 grayscale-[0.5] pointer-events-none">
+<!-- TopAppBar -->
+<div class="flex items-center p-4 pb-2 justify-between">
+<div class="text-[#1d110c] dark:text-white flex size-12 shrink-0 items-center justify-center">
+<span class="material-symbols-outlined">menu</span>
+</div>
+<h2 class="text-[#1d110c] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">Hever</h2>
+</div>
+<div class="p-4 space-y-4">
+<div class="h-48 w-full bg-gray-200 dark:bg-gray-800 rounded-xl"></div>
+<div class="h-8 w-1/2 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+<div class="space-y-2">
+<div class="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+<div class="h-4 w-full bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+<div class="h-4 w-3/4 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Success Confirmation Overlay -->
+<div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 dark:bg-background-dark/90 backdrop-blur-md px-6">
+<!-- Confetti Simulation (Static CSS approach) -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="confetti bg-primary" style="top: 10%; right: 20%;"></div>
+<div class="confetti bg-success-green" style="top: 15%; right: 40%;"></div>
+<div class="confetti bg-blue-400" style="top: 25%; right: 10%;"></div>
+<div class="confetti bg-yellow-400" style="top: 5%; left: 30%;"></div>
+<div class="confetti bg-primary" style="top: 30%; left: 15%;"></div>
+<div class="confetti bg-success-green" style="bottom: 20%; right: 15%;"></div>
+<div class="confetti bg-blue-400" style="bottom: 10%; left: 20%;"></div>
+<div class="confetti bg-yellow-400" style="bottom: 40%; left: 5%;"></div>
+<div class="confetti bg-primary" style="top: 50%; right: 5%;"></div>
+<div class="confetti bg-success-green" style="top: 60%; left: 10%;"></div>
+</div>
+<!-- Celebration Circle Icon -->
+<div class="relative mb-8">
+<div class="flex items-center justify-center w-32 h-32 rounded-full bg-success-green shadow-xl shadow-success-green/20">
+<span class="material-symbols-outlined text-white text-7xl font-bold">check</span>
+</div>
+<!-- Decorative Rings -->
+<div class="absolute -inset-4 border-4 border-success-green/20 rounded-full"></div>
+<div class="absolute -inset-8 border-2 border-success-green/10 rounded-full"></div>
+</div>
+<!-- HeadlineText -->
+<div class="text-center">
+<h1 class="text-[#1d110c] dark:text-white tracking-light text-[32px] font-bold leading-tight px-4 pb-3">יפה! דני מעריך את זה 💚</h1>
+</div>
+<!-- BodyText / Milestone -->
+<div class="flex flex-col items-center">
+<p class="text-[#1d110c]/70 dark:text-white/70 text-lg font-medium leading-normal pb-6 px-4 text-center">מילה טובה #13 השבוע</p>
+<!-- Progress Pill -->
+<div class="inline-flex items-center gap-2 bg-primary/10 dark:bg-primary/20 text-primary px-4 py-2 rounded-full font-bold text-sm mb-12">
+<span class="material-symbols-outlined text-sm">local_fire_department</span>
+<span>רצף של 5 ימים!</span>
+</div>
+</div>
+<!-- Bottom Action Button -->
+<div class="w-full max-w-xs mt-auto mb-10">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-5 rounded-full text-xl shadow-lg shadow-primary/30 transition-all active:scale-95">
+        מעולה, המשך
+      </button>
+</div>
+<!-- BottomSheetHandle - Subtle indicator -->
+<div class="absolute bottom-2 left-0 w-full flex justify-center">
+<div class="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-gray-700"></div>
+</div>
+</div>
+<!-- Decorative Images Component (Hidden or used as pattern context) -->
+<div class="hidden">
+<div class="flex w-full grow bg-[#fcf9f8] @container p-4">
+<div class="w-full gap-1 overflow-hidden bg-[#fcf9f8] @[480px]:gap-2 aspect-[3/2] rounded-xl flex">
+<div class="w-full bg-center bg-no-repeat bg-cover aspect-auto rounded-none flex-1" data-alt="Abstract vibrant geometric pattern celebrating success" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA8yTuzGVHi6995JAa7-k-1UkpyZ5buqGYJnCuALLb5XHUOIlYIp6SJnsPXw4qdqbKAJdsQwo7GunxLxTDliPYUjzf2GALj72m-VqTh3Ut0jBqF9GvhWw_JR9j7Ye8_fygdkr8rQl2dat3LAgJGP-TlS4r15GEjV82DAcA5J2VjpuqTlFTbgH9jTRbzJYltq0xKLxln8DaMLypAn9Au2tpt2-F_0y3rZgC0OBU0rLgac-pGtOmMEFMTLixhuGpcd8pxMtkqzOVEUbtc");'></div>
+</div>
+</div>
+</div>
+</body></html>

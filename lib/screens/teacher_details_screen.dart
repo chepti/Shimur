@@ -3,8 +3,10 @@ import '../models/teacher.dart';
 import '../models/action.dart';
 import '../services/firestore_service.dart';
 import '../widgets/status_indicator.dart';
+import '../widgets/hebrew_gregorian_date.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
+import 'engagement_survey_screen.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
@@ -23,6 +25,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   final _nextActionDateController = TextEditingController();
   final _nextActionTypeController = TextEditingController();
   bool _controllersInitialized = false;
+  int _refreshKey = 0;
 
   @override
   void dispose() {
@@ -82,43 +85,67 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('פרטי מורה'),
-          backgroundColor: const Color(0xFF11a0db),
-          foregroundColor: Colors.white,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () {
-                // TODO: מסך עריכה
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('פונקציונליות עריכה בקרוב')),
-                );
-              },
+      child: FutureBuilder<Teacher?>(
+        key: ValueKey(_refreshKey),
+        future: _firestoreService.getTeacher(widget.teacherId),
+        builder: (context, teacherSnapshot) {
+          if (teacherSnapshot.connectionState == ConnectionState.waiting) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('פרטי מורה'),
+                backgroundColor: const Color(0xFF11a0db),
+                foregroundColor: Colors.white,
+              ),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          final teacher = teacherSnapshot.data;
+          if (teacher == null) {
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('פרטי מורה'),
+                backgroundColor: const Color(0xFF11a0db),
+                foregroundColor: Colors.white,
+              ),
+              body: const Center(child: Text('מורה לא נמצא')),
+            );
+          }
+
+          _initializeControllers(teacher);
+
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('פרטי מורה'),
+              backgroundColor: const Color(0xFF11a0db),
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () async {
+                    final updated = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AddTeacherScreen(teacher: teacher),
+                      ),
+                    );
+                    if (updated == true && mounted) {
+                      setState(() {
+                        _controllersInitialized = false;
+                        _refreshKey++;
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-        body: FutureBuilder<Teacher?>(
-          future: _firestoreService.getTeacher(widget.teacherId),
-          builder: (context, teacherSnapshot) {
-            if (teacherSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final teacher = teacherSnapshot.data;
-            if (teacher == null) {
-              return const Center(child: Text('מורה לא נמצא'));
-            }
-            
-            _initializeControllers(teacher);
-
-            return SingleChildScrollView(
+            body: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // כרטיס מידע בסיסי
+                  // כרטיס מידע בסיסי + פרופיל מורה
                   Card(
                     elevation: 2,
                     shape: RoundedRectangleBorder(
@@ -148,60 +175,202 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                             Icons.calendar_today,
                             'וותק בבית הספר: ${teacher.seniorityYears} שנים',
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           _buildInfoRow(
                             Icons.work,
                             'וותק כללי: ${teacher.totalSeniorityYears} שנים',
                           ),
+                          const SizedBox(height: 12),
+                          const Divider(),
                           const SizedBox(height: 8),
-                          _buildInfoRow(
-                            Icons.schedule,
-                            'היקף משרה: ${teacher.workloadPercent}%',
+                          const Text(
+                            'זמני עומס',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 8),
-                          _buildInfoRow(
-                            Icons.sentiment_satisfied_alt,
-                            'שביעות רצון: ${teacher.satisfactionRating}/5',
-                          ),
+                          if (teacher.busyWeekdays.isNotEmpty)
+                            _buildInfoRow(
+                              Icons.calendar_view_week,
+                              'ימים עמוסים בשבוע: ${teacher.busyWeekdays.join(", ")}',
+                            )
+                          else
+                            _buildInfoRow(
+                              Icons.calendar_view_week,
+                              'ימים עמוסים בשבוע: טרם סומן',
+                            ),
                           const SizedBox(height: 4),
                           _buildInfoRow(
-                            Icons.group,
-                            'תחושת שייכות: ${teacher.belongingRating}/5',
+                            Icons.event,
+                            teacher.busySeason != null
+                                ? 'תקופת עומס בשנה: ${teacher.busySeason}'
+                                : 'תקופת עומס בשנה: טרם סומנה',
                           ),
-                          const SizedBox(height: 4),
-                          _buildInfoRow(
-                            Icons.speed,
-                            'עומס: ${teacher.workloadRating}/5',
+                          if (teacher.busyReason != null &&
+                              teacher.busyReason!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            _buildInfoRow(
+                              Icons.label_outline,
+                              'סיבת עומס: ${teacher.busyReason}',
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'סטטוס רגשי לפי תחושתך',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildMoodStatusChips(teacher),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'סגנון מוטיבציה ותובנות מעורבות',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           _buildInfoRow(
-                            Icons.event_busy,
-                            'היעדרויות השנה: ${teacher.absencesThisYear}',
+                            Icons.psychology_alt_outlined,
+                            teacher.motivationStyles.isNotEmpty
+                                ? 'סגנונות בולטים: ${teacher.motivationStyles.map(_mapMotivationLabel).join(", ")}'
+                                : 'סגנונות בולטים: טרם סומנו',
                           ),
-                          if (teacher.specialActivities.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          if (teacher.engagementSignals.isNotEmpty)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: teacher.engagementSignals
+                                  .map(
+                                    (signal) => Chip(
+                                      label: Text(signal),
+                                      backgroundColor:
+                                          const Color(0xFFFFF3EB),
+                                    ),
+                                  )
+                                  .toList(),
+                            )
+                          else
+                            Text(
+                              'עוד לא הוגדרו תובנות מעורבות מהמנהל או מהשאלון.',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'מדד מעורבות (Q12)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final updated = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          EngagementSurveyScreen(
+                                        teacherId: widget.teacherId,
+                                      ),
+                                    ),
+                                  );
+                                  if (updated == true && mounted) {
+                                    setState(() {
+                                      _controllersInitialized = false;
+                                      _refreshKey++;
+                                    });
+                                  }
+                                },
+                                icon: const Icon(Icons.edit_note, size: 20),
+                                label: const Text('מילוי / עריכת שאלון'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (teacher.engagementDomainScores.isNotEmpty)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: teacher
+                                      .engagementDomainScores.entries
+                                      .map(
+                                        (e) => Chip(
+                                          label: Text(
+                                            '${_mapDomainLabel(e.key)}: ${e.value}/6',
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: () =>
+                                        _showEngagementDetails(context, teacher),
+                                    icon: const Icon(Icons.list_alt_outlined),
+                                    label: const Text('פירוט 12 היגדים'),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Text(
+                              'שאלון המעורבות טרם מולא.',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          if (teacher.absencesThisYear > 0 ||
+                              teacher.specialActivities.isNotEmpty) ...[
                             const SizedBox(height: 16),
                             const Divider(),
                             const SizedBox(height: 8),
                             const Text(
-                              'פעילויות מיוחדות:',
+                              'נתונים משלימים',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 4,
-                              children: teacher.specialActivities
-                                  .map(
-                                    (activity) => Chip(
-                                      label: Text(activity),
-                                      backgroundColor:
-                                          const Color(0xFFE3F2FD),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
+                            const SizedBox(height: 8),
+                            if (teacher.absencesThisYear > 0)
+                              _buildInfoRow(
+                                Icons.event_busy,
+                                'היעדרויות השנה: ${teacher.absencesThisYear}',
+                              ),
+                            if (teacher.specialActivities.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: teacher.specialActivities
+                                    .map(
+                                      (activity) => Chip(
+                                        label: Text(activity),
+                                        backgroundColor:
+                                            const Color(0xFFE3F2FD),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            ],
                           ],
                           if (teacher.notes != null &&
                               teacher.notes!.isNotEmpty) ...[
@@ -277,8 +446,8 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '${action.date.day}/${action.date.month}/${action.date.year}',
+                                  HebrewGregorianDateText(
+                                    date: action.date,
                                   ),
                                   if (action.notes != null &&
                                       action.notes!.isNotEmpty)
@@ -397,9 +566,9 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                   ),
                 ],
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -411,6 +580,181 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
         const SizedBox(width: 8),
         Text(text, style: TextStyle(color: Colors.grey[700])),
       ],
+    );
+  }
+
+  static String _mapMotivationLabel(String key) {
+    switch (key) {
+      case 'gregariousness':
+        return 'חברותיות';
+      case 'autonomy':
+        return 'אוטונומיה';
+      case 'status':
+        return 'סטטוס';
+      case 'inquisitiveness':
+        return 'סקרנות';
+      case 'power':
+        return 'כוח';
+      case 'affiliation':
+        return 'שייכות אישית';
+      default:
+        return key;
+    }
+  }
+
+  Widget _buildMoodStatusChips(Teacher teacher) {
+    const options = {
+      'bloom': 'מורה פורח',
+      'flow': 'מורה זורם',
+      'tense': 'מורה מתוח',
+      'disconnected': 'מורה מנותק',
+      'burned_out': 'מורה שחוק',
+    };
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.entries.map((entry) {
+        final isSelected = teacher.moodStatus == entry.key;
+        final isAlert = entry.key == 'tense' ||
+            entry.key == 'disconnected' ||
+            entry.key == 'burned_out';
+
+        return ChoiceChip(
+          label: Text(entry.value),
+          selected: isSelected,
+          selectedColor:
+              isAlert ? const Color(0xFFFFE0E0) : const Color(0xFFE3F2FD),
+          labelStyle: TextStyle(
+            color: isAlert
+                ? (isSelected ? const Color(0xFFB71C1C) : Colors.red[700])
+                : (isSelected ? const Color(0xFF0D47A1) : Colors.black87),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+          onSelected: (selected) async {
+            try {
+              final updated = teacher.copyWith(
+                moodStatus: selected ? entry.key : null,
+              );
+              await _firestoreService.updateTeacher(updated);
+
+              // רישום פעולה קטנה כדי לסמן שהמנהל שם לב
+              if (selected) {
+                // לא מכניסים כאן Action כי אין לנו teacherId, רק ה-Teacher עצמו
+                // את לוג הסטטוס המלא נוסיף בטקסי סוף השבוע.
+              }
+
+              if (mounted) {
+                setState(() {});
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('שגיאה בעדכון סטטוס: $e')),
+                );
+              }
+            }
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  static String _mapDomainLabel(String key) {
+    switch (key) {
+      case 'basic_needs':
+        return 'צרכים בסיסיים';
+      case 'individual_contribution':
+        return 'תרומה אישית';
+      case 'team_belonging':
+        return 'שייכות לצוות';
+      case 'personal_growth':
+        return 'צמיחה אישית';
+      default:
+        return key;
+    }
+  }
+
+  void _showEngagementDetails(BuildContext context, Teacher teacher) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final scores = teacher.engagementItemScores;
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'פירוט 12 היגדי המעורבות',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'הציון בכל היגד הוא בסולם 1–6 כפי שסימן/ה המורה בטופס החיצוני.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        final key = 'q${index + 1}';
+                        final value = scores[key];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text('היגד ${index + 1}'),
+                          trailing: Text(
+                            value != null ? '$value / 6' : '-',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (teacher.engagementNote != null &&
+                      teacher.engagementNote!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'הערה מילולית מהשאלון:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(teacher.engagementNote!),
+                  ],
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -99,7 +99,16 @@ https://shimur.firebaseapp.com
 
 ## 🔄 עדכונים עתידיים
 
-כשאת רוצה לעדכן את האפליקציה (למשל אחרי שינויים בקוד):
+### אפשרות 1: סקריפט אחד (GitHub + Web)
+לעדכון GitHub **וגם** גרסת ה-Web בפעולה אחת:
+
+- **ממשק גרפי:** לחיצה כפולה על `deploy_web.bat` בתיקיית הפרויקט
+- **מ-PowerShell:** `.\deploy_web.ps1` מתוך `t:\CURSOR2\Shimur`
+
+הסקריפט מבצע: commit + push ל-GitHub, בניית web, ופריסה ל-Firebase Hosting.
+
+### אפשרות 2: פקודות ידניות
+כשאת רוצה רק לעדכן את האתר (בלי Git):
 
 ```powershell
 # 1. בנייה מחדש

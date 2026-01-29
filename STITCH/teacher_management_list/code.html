@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html class="light" dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hever - רשימת מורים</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ff6933",
+                        "secondary-blue": "#339dff",
+                        "status-green": "#22c55e",
+                        "background-light": "#f8f6f5",
+                        "background-dark": "#23140f",
+                        "card-white": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-[#1d110c] dark:text-[#fcf9f8]">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+<div class="flex items-center p-4 pb-2 justify-between">
+<div class="text-[#1d110c] dark:text-[#fcf9f8] flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined text-2xl">menu</span>
+</div>
+<h1 class="text-[#1d110c] dark:text-[#fcf9f8] text-xl font-bold leading-tight tracking-tight flex-1 text-center">רשימת מורים</h1>
+<div class="flex w-12 items-center justify-end">
+<button class="flex size-12 cursor-pointer items-center justify-center rounded-full bg-transparent text-[#1d110c] dark:text-[#fcf9f8]">
+<span class="material-symbols-outlined text-2xl">notifications</span>
+</button>
+</div>
+</div>
+</header>
+<main class="pb-24">
+<!-- Search Bar -->
+<div class="px-4 py-3">
+<label class="flex flex-col min-w-40 h-14 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-2xl h-full shadow-sm">
+<div class="text-[#a15d45] flex border-none bg-white dark:bg-[#32201a] items-center justify-center pr-4 rounded-r-2xl">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-l-2xl text-[#1d110c] dark:text-white focus:outline-0 focus:ring-0 border-none bg-white dark:bg-[#32201a] focus:border-none h-full placeholder:text-[#a15d45] px-4 text-base font-normal leading-normal text-right" placeholder="חיפוש מורה..." value=""/>
+</div>
+</label>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-3 px-4 py-2 overflow-x-auto no-scrollbar">
+<div class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary text-white px-6 shadow-md">
+<p class="text-sm font-semibold">הכל</p>
+</div>
+<div class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white dark:bg-[#32201a] px-6 border border-primary/20">
+<p class="text-[#1d110c] dark:text-white text-sm font-medium">דורש תשומת לב</p>
+</div>
+<div class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white dark:bg-[#32201a] px-6 border border-primary/10">
+<p class="text-[#1d110c] dark:text-white text-sm font-medium">הכל בסדר</p>
+</div>
+</div>
+<!-- Section: Attention Required -->
+<div class="mt-6">
+<div class="flex items-center justify-between px-4 pb-3">
+<h2 class="text-[#1d110c] dark:text-white text-[22px] font-bold leading-tight tracking-tight">דורש תשומת לב (3)</h2>
+<span class="material-symbols-outlined text-primary">priority_high</span>
+</div>
+<!-- Card 1 -->
+<div class="px-4 mb-4">
+<div class="flex flex-col bg-white dark:bg-[#32201a] rounded-2xl overflow-hidden shadow-lg border-r-4 border-primary">
+<div class="flex p-4 gap-4">
+<div class="size-20 rounded-xl bg-center bg-cover shrink-0" data-alt="Portrait of a smiling female teacher" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBuKcpOrbNwK3y0yvCpV_w6y8HQFX7lPIHUb3vEfX4itOhI0q5Uwrobv8dNOBA6FJHPQ9Ks56tkd3GFqJwVm0qFAwJ-hBvytc6jftEL89cJWrc_xVNr2QE_j1CrlP_IvWSbPquWfFgPEJc0qIZ4CVmuESroPHSKLnG-1oHFU8Rjm4haQC97aomImqFkTOLQ-2uWV0qsivzoo7mK9jjsuHiElSYARvi-JHHL1mWYbY303vyZ1BY8mHyR95ByVzxHlcD7AoeWzQA2d09I");'></div>
+<div class="flex flex-col justify-center flex-1">
+<h3 class="text-[#1d110c] dark:text-white text-lg font-bold">שרה כהן</h3>
+<p class="text-primary text-sm font-medium mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-base">calendar_today</span>
+                                14 ימים בלי אינטראקציה
+                            </p>
+</div>
+</div>
+<div class="flex gap-2 p-4 pt-0">
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full h-11 bg-primary text-white text-sm font-bold shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">volunteer_activism</span>
+                            מילה טובה
+                        </button>
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full h-11 bg-secondary-blue text-white text-sm font-bold shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-lg">event</span>
+                            פגישה
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="px-4 mb-4">
+<div class="flex flex-col bg-white dark:bg-[#32201a] rounded-2xl overflow-hidden shadow-lg border-r-4 border-primary">
+<div class="flex p-4 gap-4">
+<div class="size-20 rounded-xl bg-center bg-cover shrink-0" data-alt="Portrait of a male teacher with glasses" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB-9EcN3faobGzbDjU_IBCicTr6vM5yVbJnpMKLu1F4L9QcNe6smV9x9tNAtx6_A6_zuFYtERh4_Yauss4qYLm0QTzItjZtF4wN79QsAeP2KXLq7ReiWMiUg92j3-faPMyvQ4u0rJXyWIDxgU4SjAnDpIdLkXvKcWYA8E40YavoQgayrsu2EnzwTQg3etqC5Rw3stLzBWVJ3Q_2NInCr2BSEYCLO8AhtDuS2swtO654356Pb1czLTaftSLJ5VsFayNS89ZES1lOAXkN");'></div>
+<div class="flex flex-col justify-center flex-1">
+<h3 class="text-[#1d110c] dark:text-white text-lg font-bold">דוד לוי</h3>
+<p class="text-primary text-sm font-medium mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-base">calendar_today</span>
+                                10 ימים בלי אינטראקציה
+                            </p>
+</div>
+</div>
+<div class="flex gap-2 p-4 pt-0">
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full h-11 bg-primary text-white text-sm font-bold shadow-sm">
+<span class="material-symbols-outlined text-lg">volunteer_activism</span>
+                            מילה טובה
+                        </button>
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full h-11 bg-secondary-blue text-white text-sm font-bold shadow-sm">
+<span class="material-symbols-outlined text-lg">event</span>
+                            פגישה
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: All Good (Collapsed) -->
+<div class="mt-8">
+<div class="mx-4 p-4 flex items-center justify-between bg-white/50 dark:bg-[#32201a]/50 rounded-2xl border border-dashed border-[#a15d45]/30">
+<div class="flex items-center gap-3">
+<div class="size-3 rounded-full bg-status-green"></div>
+<h2 class="text-[#1d110c] dark:text-white text-lg font-bold">הכל בסדר (47)</h2>
+</div>
+<span class="material-symbols-outlined text-[#a15d45]">expand_more</span>
+</div>
+<!-- Small Preview Rows for "All Good" -->
+<div class="mt-4 px-4 space-y-3 opacity-60">
+<div class="flex items-center justify-between bg-white dark:bg-[#32201a] p-3 rounded-xl shadow-sm">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-center bg-cover" data-alt="Small teacher thumbnail" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDUVs-GBz3DG8vkYarX1mDoqpAZHFeBS3cOEt8dparc19AFH6os_hoYmpr_DFk846jP3Ju4qGpMyN5BdrtkeqQSVTTMoHjPav2C6WPT_dLvertpaAnXC6gDQN98mQkJ8YydG0E4p0BwyFumv9u3OmqoPvBPr9xGh6Ig0edDqSEtcRpB4kKY4llN_9XVKP2WajwQiQPtCz_BlFwpxUa3TLyCXMJpSoBHl5R_IH3ziz4jS0csC6VOoi3xkFfm2aB5sWfdkay2VXRv6iKI");'></div>
+<span class="text-sm font-semibold">מיכל רז</span>
+</div>
+<div class="size-2 rounded-full bg-status-green"></div>
+</div>
+<div class="flex items-center justify-between bg-white dark:bg-[#32201a] p-3 rounded-xl shadow-sm">
+<div class="flex items-center gap-3">
+<div class="size-10 rounded-full bg-center bg-cover" data-alt="Small teacher thumbnail" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBC3_pEAOgFaNjMMvu866Q5lILhsYE3cp1ntYndtIrkadLhw-wY72H4_mXnxIp5A2NuDFzPQ-Dv1fiU3K64uBnXmr8Lcb0gMXvL5x-4sFaOOFlwIIe7mCkvTNWZkKeHZgX4DWn9JNXDUtJQwKGT8kwW05ixjRvSAun-7EYDIjv-0D5z59PwupdLNjNdS0XX_u5yqFd1RKWwTwTqvlt8V8RO1DZDNy3lGhhzXIJylGt_PhY04-FiZKLWYj6h0uwJ-VUCdTYjkn1a-xsl");'></div>
+<span class="text-sm font-semibold">אבי כץ</span>
+</div>
+<div class="size-2 rounded-full bg-status-green"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Navigation Bar (iOS Style) -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-background-dark/90 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 px-6 py-3 flex justify-between items-center z-50">
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold">מורים</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#a15d45] dark:text-gray-400">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-medium">לוח בקרה</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#a15d45] dark:text-gray-400">
+<span class="material-symbols-outlined">chat_bubble</span>
+<span class="text-[10px] font-medium">הודעות</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#a15d45] dark:text-gray-400">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">הגדרות</span>
+</button>
+</nav>
+<!-- FAB for quick search/add -->
+<div class="fixed bottom-24 left-6 z-40">
+<button class="size-14 rounded-full bg-primary text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</div>
+</body></html>

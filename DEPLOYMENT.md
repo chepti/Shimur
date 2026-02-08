@@ -1,6 +1,47 @@
 # 🚀 הוראות פרסום האפליקציה לאינטרנט
 
-## 📋 דרישות מוקדמות
+---
+
+## 🌐 פריסה בלי Flutter מקומי (מחשב בלי Flutter / Android Studio)
+
+**כן, אפשר.** אם את במחשב שאין בו Flutter או Android Studio, אפשר לעדכן את https://shimur.web.app/ כך:
+
+1. **דחיפה ל-GitHub** – אחרי ששינית קוד, תבצעי `git push` ל־repository (לענף `main`).
+2. **GitHub Actions** – בענן של GitHub ירוץ workflow שיבנה את האפליקציה (Flutter web) ויעלה אותה ל-Firebase Hosting. אחרי כמה דקות האתר יתעדכן.
+
+### הגדרה חד־פעמית (פעם אחת)
+
+צריך להוסיף ל-GitHub **סוד** בשם `FIREBASE_TOKEN`, כדי ש-GitHub יוכל לפרסם ל-Firebase בשמך.
+
+**איך משיגים את הטוקן?**
+
+- צריך להריץ **פעם אחת** את הפקודה `firebase login:ci` במחשב שיש בו **Node.js** (לא חובה Flutter).  
+  אם יש לך Node במחשב הנוכחי – התקיני רק את Firebase CLI והרצי:
+
+```powershell
+npm install -g firebase-tools
+firebase login:ci
+```
+
+- הפקודה תפתח דפדפן להתחברות עם חשבון Google (chepti@gmail.com). אחרי ההתחברות יופיע **טוקן ארוך** בטרמינל.  
+- **העתיקי את הטוקן** (כולו, בלי רווחים מיותרים).
+
+**איפה שמים את הטוקן ב-GitHub?**
+
+1. פתחי את ה-repository ב-GitHub (chepti/shimur או השם האמיתי של הפרויקט).
+2. **Settings** → **Secrets and variables** → **Actions**.
+3. **New repository secret**.
+4. **Name:** `FIREBASE_TOKEN`  
+   **Value:** הדבקי את הטוקן שהעתקת.
+5. **Add secret**.
+
+מעכשיו, בכל **דחיפה ל־main** (או הרצה ידנית של ה-workflow "Deploy Web to Firebase Hosting"), GitHub יבנה את האפליקציה ויעלה אותה ל־https://shimur.web.app/.
+
+**הרצה ידנית:** ב-GitHub: לשונית **Actions** → בחרי "Deploy Web to Firebase Hosting" → **Run workflow**.
+
+---
+
+## 📋 דרישות מוקדמות (לפריסה מהמחשב עם Flutter)
 
 1. **Node.js** - אם אין לך, הורידי מ: https://nodejs.org/ (גרסה LTS)
 2. **Firebase CLI** - נותן לך לפרסם ישירות מהטרמינל

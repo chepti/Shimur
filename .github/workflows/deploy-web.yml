@@ -1,0 +1,33 @@
+# פריסת גרסת Web ל-Firebase Hosting (https://shimur.web.app)
+# רץ אוטומטית בכל דחיפה ל-main – בלי צורך ב-Flutter מקומי
+name: Deploy Web to Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # אפשר להריץ ידנית מ-Actions
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release
+
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npx firebase-tools deploy --only hosting --non-interactive

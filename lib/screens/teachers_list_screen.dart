@@ -18,12 +18,16 @@ class TeachersListScreen extends StatefulWidget {
 
 class _TeachersListScreenState extends State<TeachersListScreen> {
   final _firestoreService = FirestoreService();
-  late final Future<ManagerSettings> _settingsFuture;
+  ManagerSettings _settings = const ManagerSettings();
 
   @override
   void initState() {
     super.initState();
-    _settingsFuture = _firestoreService.getManagerSettings();
+    _firestoreService.getManagerSettings().then((s) {
+      if (mounted) {
+        setState(() => _settings = s);
+      }
+    });
   }
 
   @override
@@ -45,11 +49,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             ),
           ),
         ),
-        body: FutureBuilder<ManagerSettings>(
-          future: _settingsFuture,
-          builder: (context, settingsSnapshot) {
-            final settings = settingsSnapshot.data ?? const ManagerSettings();
-            return StreamBuilder<List<Teacher>>(
+        body: StreamBuilder<List<Teacher>>(
               stream: _firestoreService.getTeachersStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -96,7 +96,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                 }
 
                 final needAttentionList = _teachersNeedingAttention(teachers);
-                final limit = settings.needAttentionCount;
+                final limit = _settings.needAttentionCount;
                 final displayedNeedAttention = limit == null
                     ? needAttentionList
                     : needAttentionList.take(limit).toList();
@@ -109,7 +109,9 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     _buildGoodWordArea(
                       context: context,
                       teachers: teachers,
-                      dailyGoal: _dailyGoalFromSettings(settings),
+                      dailyGoal: _settings.goalsGoodWordsPerDay > 0
+                          ? _settings.goalsGoodWordsPerDay
+                          : 10,
                     ),
                     if (displayedNeedAttention.isNotEmpty) ...[
                       const SizedBox(height: 24),
@@ -169,9 +171,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                   ],
                 );
               },
-            );
-          },
-        ),
+            ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             Navigator.push(
@@ -226,13 +226,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     );
   }
 
-  /// יעד יומי נגזר מיעד שבועי (שבוע = 5 ימי עבודה)
-  int _dailyGoalFromSettings(ManagerSettings settings) {
-    final weekly = settings.goalsGoodWordsPerWeek;
-    if (weekly <= 0) return 5;
-    return (weekly / 5).round().clamp(1, 100);
-  }
-
   /// מורים שדורשים טיפול: סטטוס אדום/צהוב, או ללא אינטראקציה ממושכת. ממוין לפי עדיפות.
   List<Teacher> _teachersNeedingAttention(List<Teacher> teachers) {
     final now = DateTime.now();
@@ -247,14 +240,21 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
 
   int _needAttentionScore(Teacher t, DateTime now) {
     int score = 0;
-    if (t.status == 'red') score += 100;
-    else if (t.status == 'yellow') score += 50;
+    if (t.status == 'red') {
+      score += 100;
+    } else if (t.status == 'yellow') {
+      score += 50;
+    }
     final last = t.lastInteractionDate;
-    if (last == null) score += 30;
-    else {
+    if (last == null) {
+      score += 30;
+    } else {
       final days = now.difference(last).inDays;
-      if (days > 14) score += 20;
-      else if (days > 7) score += 10;
+      if (days > 14) {
+        score += 20;
+      } else if (days > 7) {
+        score += 10;
+      }
     }
     return score;
   }

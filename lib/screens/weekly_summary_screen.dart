@@ -476,20 +476,26 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            textDirection: TextDirection.rtl,
-            children: [
-              Expanded(
-                child: Text(
-                  teacher.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                  textDirection: TextDirection.rtl,
+          // SingleChildScrollView אופקי מונע overflow (למשל 70px) במסכים צרים
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true, // RTL: גלילה מתחילה מהצד הנכון
+            child: Row(
+              textDirection: TextDirection.rtl,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(
+                    teacher.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    textDirection: TextDirection.rtl,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              if (isNotUpdated) ...[
-                Wrap(
+                const SizedBox(width: 8),
+                if (isNotUpdated) ...[
+                  Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   textDirection: TextDirection.rtl,
@@ -503,53 +509,65 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   }).toList(),
                 ),
               ] else ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _moodColor(currentStatus).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _moodColor(currentStatus)),
+                // רוחב מינימלי + IconButton כדי שבגרסת Web החיצים תמיד יוצגו (ללא overflow/קריסה)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 200),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _moodColor(currentStatus).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _moodColor(currentStatus)),
+                        ),
+                        child: Text(
+                          displayStatus,
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _moodColor(currentStatus)),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        onPressed: () => _setMoodTrend(teacher, 'up'),
+                        icon: Icon(
+                          Icons.keyboard_arrow_up,
+                          size: 32,
+                          color: trend == 'up' ? Colors.green[700] : Colors.grey,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        style: IconButton.styleFrom(
+                          foregroundColor: trend == 'up' ? Colors.green[700] : Colors.grey,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _setMoodTrend(teacher, 'down'),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 32,
+                          color: trend == 'down' ? Colors.red[700] : Colors.grey,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        style: IconButton.styleFrom(
+                          foregroundColor: trend == 'down' ? Colors.red[700] : Colors.grey,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.note_add_outlined, size: 22, color: hasNote ? Colors.blue : Colors.grey),
+                        onPressed: () => _showNoteOnlyOverlay(teacher),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    displayStatus,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _moodColor(currentStatus)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () => _setMoodTrend(teacher, 'up'),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.keyboard_arrow_up,
-                      size: 36,
-                      color: trend == 'up' ? Colors.green[700] : Colors.grey,
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _setMoodTrend(teacher, 'down'),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 36,
-                      color: trend == 'down' ? Colors.red[700] : Colors.grey,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: Icon(Icons.note_add_outlined, size: 22, color: hasNote ? Colors.blue : Colors.grey),
-                  onPressed: () => _showNoteOnlyOverlay(teacher),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ],
           ),
+        ),
         ],
       ),
     );

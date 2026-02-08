@@ -8,7 +8,6 @@ import 'screens/dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/add_action_screen.dart';
 import 'screens/add_teacher_screen.dart';
-import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 

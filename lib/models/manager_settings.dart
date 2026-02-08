@@ -1,9 +1,9 @@
 /// הגדרות מנהל – יעדים, כללים, נוטיפיקציות, דורשים טיפול.
 class ManagerSettings {
+  /// יעד מילים טובות ביום
+  final int goalsGoodWordsPerDay;
   /// יעד מילים טובות בשבוע
   final int goalsGoodWordsPerWeek;
-  /// יעד מילים טובות בחודש
-  final int goalsGoodWordsPerMonth;
 
   /// כל כמה חודשים לפגוש מחנכים (למשל 2 = פעם בחודשיים)
   final int ruleMeetEducatorsMonths;
@@ -15,7 +15,7 @@ class ManagerSettings {
   final int notificationStartWeekHour;
   final int notificationStartWeekMinute;
 
-  /// יום שבוע להתראה לסוף שבוע (מחדל 5 = חמישי)
+  /// יום שבוע להתראה לסוף שבוע (1=שני … 7=ראשון). מחדל 4 = חמישי
   final int notificationEndWeekWeekday;
   final int notificationEndWeekHour;
   final int notificationEndWeekMinute;
@@ -24,14 +24,14 @@ class ManagerSettings {
   final String needAttentionLimit;
 
   const ManagerSettings({
-    this.goalsGoodWordsPerWeek = 10,
-    this.goalsGoodWordsPerMonth = 40,
+    this.goalsGoodWordsPerDay = 10,
+    this.goalsGoodWordsPerWeek = 40,
     this.ruleMeetEducatorsMonths = 2,
     this.ruleMeetRoleHoldersMonths = 1,
     this.notificationStartWeekWeekday = 7,
     this.notificationStartWeekHour = 7,
     this.notificationStartWeekMinute = 40,
-    this.notificationEndWeekWeekday = 5,
+    this.notificationEndWeekWeekday = 4,
     this.notificationEndWeekHour = 16,
     this.notificationEndWeekMinute = 0,
     this.needAttentionLimit = '5',
@@ -39,8 +39,8 @@ class ManagerSettings {
 
   Map<String, dynamic> toMap() {
     return {
+      'goalsGoodWordsPerDay': goalsGoodWordsPerDay,
       'goalsGoodWordsPerWeek': goalsGoodWordsPerWeek,
-      'goalsGoodWordsPerMonth': goalsGoodWordsPerMonth,
       'ruleMeetEducatorsMonths': ruleMeetEducatorsMonths,
       'ruleMeetRoleHoldersMonths': ruleMeetRoleHoldersMonths,
       'notificationStartWeekWeekday': notificationStartWeekWeekday,
@@ -69,14 +69,14 @@ class ManagerSettings {
   factory ManagerSettings.fromMap(Map<String, dynamic>? map) {
     if (map == null || map.isEmpty) return const ManagerSettings();
     return ManagerSettings(
-      goalsGoodWordsPerWeek: _toInt(map['goalsGoodWordsPerWeek'], 10),
-      goalsGoodWordsPerMonth: _toInt(map['goalsGoodWordsPerMonth'], 40),
+      goalsGoodWordsPerDay: _toInt(map['goalsGoodWordsPerDay'], 10),
+      goalsGoodWordsPerWeek: _toInt(map['goalsGoodWordsPerWeek'], 40),
       ruleMeetEducatorsMonths: _toInt(map['ruleMeetEducatorsMonths'], 2),
       ruleMeetRoleHoldersMonths: _toInt(map['ruleMeetRoleHoldersMonths'], 1),
       notificationStartWeekWeekday: _toInt(map['notificationStartWeekWeekday'], 7),
       notificationStartWeekHour: _toInt(map['notificationStartWeekHour'], 7),
       notificationStartWeekMinute: _toInt(map['notificationStartWeekMinute'], 40),
-      notificationEndWeekWeekday: _toInt(map['notificationEndWeekWeekday'], 5),
+      notificationEndWeekWeekday: _toInt(map['notificationEndWeekWeekday'], 4),
       notificationEndWeekHour: _toInt(map['notificationEndWeekHour'], 16),
       notificationEndWeekMinute: _toInt(map['notificationEndWeekMinute'], 0),
       needAttentionLimit: _toString(map['needAttentionLimit'], '5'),
@@ -84,8 +84,8 @@ class ManagerSettings {
   }
 
   ManagerSettings copyWith({
+    int? goalsGoodWordsPerDay,
     int? goalsGoodWordsPerWeek,
-    int? goalsGoodWordsPerMonth,
     int? ruleMeetEducatorsMonths,
     int? ruleMeetRoleHoldersMonths,
     int? notificationStartWeekWeekday,
@@ -97,8 +97,8 @@ class ManagerSettings {
     String? needAttentionLimit,
   }) {
     return ManagerSettings(
+      goalsGoodWordsPerDay: goalsGoodWordsPerDay ?? this.goalsGoodWordsPerDay,
       goalsGoodWordsPerWeek: goalsGoodWordsPerWeek ?? this.goalsGoodWordsPerWeek,
-      goalsGoodWordsPerMonth: goalsGoodWordsPerMonth ?? this.goalsGoodWordsPerMonth,
       ruleMeetEducatorsMonths: ruleMeetEducatorsMonths ?? this.ruleMeetEducatorsMonths,
       ruleMeetRoleHoldersMonths: ruleMeetRoleHoldersMonths ?? this.ruleMeetRoleHoldersMonths,
       notificationStartWeekWeekday: notificationStartWeekWeekday ?? this.notificationStartWeekWeekday,

@@ -205,3 +205,123 @@ firebase deploy --only hosting
 ```
 
 **זה הכל!** 🎉
+
+---
+
+# 📱 פריסת האפליקציה לאנדרואיד
+
+אחרי שפרסתם ל־Web (דמוי-אתר), אפשר גם להפוך את האפליקציה לאפליקציית אנדרואיד – להתקנה ישירה (APK) או לפרסום ב־Google Play.
+
+## דרישות מוקדמות לאנדרואיד
+
+1. **Flutter** – מותקן ועובד (כמו ב־SETUP.md).
+2. **Android SDK** – דרך Android Studio:  
+   [הורדת Android Studio](https://developer.android.com/studio) → התקנה → SDK Manager → וידוא ש־Android SDK מותקן.
+3. **Firebase לאנדרואיד** – כבר מוגדר (יש `google-services` ב־`android/app/build.gradle.kts`).  
+   אם עדיין לא הרצתם: `flutterfire configure` ובחרו גם Android.
+
+בדיקה:
+
+```powershell
+flutter doctor
+```
+
+וודאו שיש סימון ל־Android toolchain (או תקנו לפי ההודעות).
+
+---
+
+## אפשרות א': בניית APK – להתקנה ישירה (בלי חנות)
+
+מתאים לבדיקות, לחלוקה פנימית, או להתקנה ידנית במכשירים.
+
+### שלב 1: בניית APK
+
+```powershell
+cd c:\CURSOR\SHIMUR
+flutter build apk --release
+```
+
+הקובץ ייווצר ב:  
+`build\app\outputs\flutter-apk\app-release.apk`
+
+### שלב 2: התקנה במכשיר
+
+- **מחובר USB:**  
+  ```powershell
+  flutter install --release
+  ```
+- **ידנית:** העתקו את `app-release.apk` לטלפון (דוא"ל, Google Drive, וכו') ופתחו את הקובץ במכשיר. ייתכן שיהיה צורך לאפשר "התקנה ממקורות לא ידועים" בהגדרות.
+
+**הערה:** ב־release כרגע משתמשים ב־debug signing (ב־build.gradle.kts). זה מספיק לבדיקות; לפרסום ב־Play Store צריך חתימה ייעודית (ראה למטה).
+
+---
+
+## אפשרות ב': פרסום ב־Google Play Store
+
+### שלב 1: יצירת Keystore (מפתח חתימה) – פעם אחת
+
+זה המפתח שחותם את האפליקציה. **שמרו את הקובץ והסיסמה במקום בטוח – אי אפשר לשחזר.**
+
+ב־PowerShell (או CMD):
+
+```powershell
+cd c:\CURSOR\SHIMUR\android
+keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+ממלאים: סיסמה ל־keystore, פרטים (שם, ארגון, וכו').  
+נוצר קובץ `upload-keystore.jks` – **אל תשתפו ולא תעלו ל־Git.**
+
+### שלב 2: הגדרת חתימה ב־Flutter/Android
+
+1. צרו קובץ `android/key.properties` (הקובץ לא נשמר ב־Git):
+
+```properties
+storePassword=הסיסמה_שהזנת
+keyPassword=הסיסמה_שהזנת
+keyAlias=upload
+storeFile=upload-keystore.jks
+```
+
+2. **הפרויקט כבר מוגדר לחתימה:** ב־`android/app/build.gradle.kts` יש קריאה ל־`key.properties`. אם הקובץ קיים – ה־release ייחתם עם ה־keystore; אם לא – ייעשה שימוש ב־debug (לבדיקות).
+
+### שלב 3: בניית App Bundle (AAB) ל־Play
+
+Google Play דורש קובץ **Android App Bundle** (.aab), לא רק APK:
+
+```powershell
+cd c:\CURSOR\SHIMUR
+flutter build appbundle --release
+```
+
+הקובץ:  
+`build\app\outputs\bundle\release\app-release.aab`
+
+### שלב 4: חשבון מפתח ב־Google Play
+
+1. היכנסו ל־[Google Play Console](https://play.google.com/console).
+2. שילמו דמי רישום חד־פעמיים (כ־25$).
+3. צרו "אפליקציה חדשה", מלאו שם ופרטים בסיסיים.
+
+### שלב 5: העלאת האפליקציה
+
+1. ב־Play Console: **Production** (או **Testing** → Internal/Closed testing).
+2. **Create new release** → העלו את `app-release.aab`.
+3. מלאו **Store listing**: תיאור, צילומי מסך, אייקון, מדיניות פרטיות (אם נדרש).
+4. מלאו **Content rating**, **Target audience**, **News app** (אם רלוונטי) וכו'.
+5. אחרי שכל החובות ירוקים – **Submit for review**.
+
+האישור יכול לקחת כמה שעות עד כמה ימים.
+
+---
+
+## סיכום קצר – אנדרואיד
+
+| מטרה | פקודה / פעולה |
+|------|----------------|
+| **APK לבדיקות / התקנה ישירה** | `flutter build apk --release` → `build\app\outputs\flutter-apk\app-release.apk` |
+| **התקנה ממחשב עם USB** | `flutter install --release` |
+| **הכנה ל־Play Store** | יצירת keystore, הגדרת `key.properties` ו־signing ב־build.gradle, אז `flutter build appbundle --release` |
+| **פרסום ב־Play** | העלאת ה־.aab ב־Play Console + מילוי Store listing ואישורים |
+
+`key.properties` ו־`*.jks` כבר ממוקמים ב־`.gitignore` של `android/`, כך שלא יעלו ל־Git.

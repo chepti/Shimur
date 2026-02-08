@@ -4,6 +4,14 @@ import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
+// צבעי הדגשה למסך הגדרות
+const Color _AccentRedDark = Color(0xFFAC2B31);
+const Color _AccentRed = Color(0xFFED1C24);
+const Color _AccentAmber = Color(0xFFFAA41A);
+const Color _AccentLime = Color(0xFFB2D234);
+const Color _AccentGreen = Color(0xFF40AE49);
+const double _CardRadius = 20;
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
@@ -38,10 +46,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     final s = await _firestoreService.getManagerSettings();
-    if (mounted) setState(() {
-      _settings = s;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _settings = s;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _saveSettings(ManagerSettings next) async {
@@ -73,8 +83,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('הגדרות'),
-          backgroundColor: const Color(0xFF11a0db),
+          backgroundColor: _AccentRedDark,
           foregroundColor: Colors.white,
+          elevation: 0,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(_CardRadius)),
+          ),
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -83,16 +97,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildProfileCard(),
                   const SizedBox(height: 20),
-                  _buildSectionTitle('יעדים'),
+                  _buildSectionTitle('יעדים', _AccentGreen),
                   _buildGoalsCard(),
                   const SizedBox(height: 20),
-                  _buildSectionTitle('כללים'),
+                  _buildSectionTitle('כללים', _AccentAmber),
                   _buildRulesCard(),
                   const SizedBox(height: 20),
-                  _buildSectionTitle('נוטיפיקציות'),
+                  _buildSectionTitle('נוטיפיקציות', _AccentLime),
                   _buildNotificationsCard(),
                   const SizedBox(height: 20),
-                  _buildSectionTitle('דורשים טיפול'),
+                  _buildSectionTitle('דורשים טיפול', _AccentRed),
                   _buildNeedAttentionCard(),
                   const SizedBox(height: 24),
                   _buildSignOutCard(),
@@ -103,16 +117,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF11a0db),
-        ),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 22,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -120,10 +147,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildProfileCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: ListTile(
-        leading: const Icon(Icons.person, color: Color(0xFF11a0db)),
-        title: const Text('פרופיל'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: _AccentLime.withValues(alpha: 0.2),
+          child: const Icon(Icons.person, color: _AccentGreen),
+        ),
+        title: const Text('פרופיל', style: TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(_authService.currentUser?.email ?? 'לא מחובר'),
         trailing: const Icon(Icons.chevron_left),
       ),
@@ -133,36 +164,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildGoalsCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'כמה מילים טובות ברצונך לתת?',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
             Row(
-              key: ValueKey('goals_${_settings.goalsGoodWordsPerWeek}_${_settings.goalsGoodWordsPerMonth}'),
+              children: [
+                Icon(Icons.favorite, color: _AccentRed, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'כמה מילים טובות ברצונך לתת?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              key: ValueKey('goals_${_settings.goalsGoodWordsPerDay}_${_settings.goalsGoodWordsPerWeek}'),
               children: [
                 Expanded(
                   child: TextFormField(
-                    initialValue: '${_settings.goalsGoodWordsPerWeek}',
+                    initialValue: '${_settings.goalsGoodWordsPerDay}',
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
-                    decoration: const InputDecoration(
-                      labelText: 'בשבוע',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'ביום',
                       suffixText: 'מילים',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: _AccentGreen, width: 2),
+                      ),
                     ),
                     onChanged: (v) {
                       final n = int.tryParse(v);
                       if (n != null && n >= 0) {
-                        _saveSettings(_settings.copyWith(goalsGoodWordsPerWeek: n));
+                        _saveSettings(_settings.copyWith(goalsGoodWordsPerDay: n));
                       }
                     },
                   ),
@@ -170,20 +213,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    initialValue: '${_settings.goalsGoodWordsPerMonth}',
+                    initialValue: '${_settings.goalsGoodWordsPerWeek}',
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                     ],
-                    decoration: const InputDecoration(
-                      labelText: 'בחודש',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'בשבוע',
                       suffixText: 'מילים',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: _AccentGreen, width: 2),
+                      ),
                     ),
                     onChanged: (v) {
                       final n = int.tryParse(v);
                       if (n != null && n >= 0) {
-                        _saveSettings(_settings.copyWith(goalsGoodWordsPerMonth: n));
+                        _saveSettings(_settings.copyWith(goalsGoodWordsPerWeek: n));
                       }
                     },
                   ),
@@ -199,31 +248,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildRulesCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'תדירות פגישות',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.school, color: Color(0xFF11a0db), size: 20),
+                Icon(Icons.handshake, color: _AccentAmber, size: 22),
                 const SizedBox(width: 8),
-                const Expanded(
-                  child: Text('פגוש מחנכים'),
+                const Text(
+                  'תדירות פגישות',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.school, color: _AccentAmber, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('פגוש מחנכים')),
                 SizedBox(
-                  width: 80,
+                  width: 100,
                   child: DropdownButtonFormField<int>(
                     value: _settings.ruleMeetEducatorsMonths,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     items: [1, 2, 3, 4, 6].map((m) {
                       return DropdownMenuItem<int>(
@@ -242,21 +296,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.badge, color: Color(0xFF11a0db), size: 20),
+                Icon(Icons.badge, color: _AccentAmber, size: 20),
                 const SizedBox(width: 8),
-                const Expanded(
-                  child: Text('פגוש בעלי תפקידים'),
-                ),
+                const Expanded(child: Text('פגוש בעלי תפקידים')),
                 SizedBox(
-                  width: 80,
+                  width: 100,
                   child: DropdownButtonFormField<int>(
                     value: _settings.ruleMeetRoleHoldersMonths,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     items: [1, 2, 3, 4].map((m) {
                       return DropdownMenuItem<int>(
@@ -284,15 +337,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildNotificationsCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'מתי לקבל התראות',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Icon(Icons.notifications_active, color: _AccentLime, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'מתי לקבל התראות',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             _buildNotificationRow(
@@ -351,10 +410,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 100,
               child: DropdownButtonFormField<int>(
                 value: weekday,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  border: OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 items: _weekdayNames
                     .map((e) => DropdownMenuItem<int>(
@@ -370,10 +429,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 90,
               child: TextFormField(
                 initialValue: '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'שעה',
-                  border: OutlineInputBorder(),
                   hintText: '07:40',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: _AccentLime, width: 2),
+                  ),
                 ),
                 onChanged: (v) {
                   final parts = v.split(':');
@@ -401,21 +464,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ];
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'כמה מורים להציג ברשימת "דורשים טיפול"',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Icon(Icons.person_search, color: _AccentRed, size: 22),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'כמה מורים להציג ברשימת "דורשים טיפול"',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             ...options.map((e) => RadioListTile<String>(
                   title: Text(e.value),
                   value: e.key,
                   groupValue: _settings.needAttentionLimit,
+                  activeColor: _AccentRed,
                   onChanged: _isSaving
                       ? null
                       : (v) {
@@ -433,12 +505,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSignOutCard() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: ListTile(
-        leading: const Icon(Icons.logout, color: Color(0xFFF44336)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: _AccentRed.withValues(alpha: 0.15),
+          child: const Icon(Icons.logout, color: _AccentRedDark),
+        ),
         title: const Text(
           'התנתקות',
-          style: TextStyle(color: Color(0xFFF44336), fontWeight: FontWeight.w600),
+          style: TextStyle(color: _AccentRedDark, fontWeight: FontWeight.w600),
         ),
         onTap: () async {
           final confirm = await showDialog<bool>(

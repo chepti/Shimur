@@ -6,6 +6,11 @@ service cloud.firestore {
       // מנהל יכול לקרוא ולעדכן רק את בית הספר שלו
       allow read, write: if request.auth != null && request.auth.uid == schoolId;
       
+      // הגדרות מנהל (יעדים, כללים, נוטיפיקציות, דורשים טיפול)
+      match /settings/{settingId} {
+        allow read, write: if request.auth != null && request.auth.uid == schoolId;
+      }
+
       // כללי אבטחה למורים
       match /teachers/{teacherId} {
         // מנהל יכול לקרוא ולעדכן רק את המורים של בית הספר שלו

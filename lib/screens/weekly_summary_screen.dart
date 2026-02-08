@@ -43,15 +43,15 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     (id: 'שחוק', label: 'שחוק', color: Color(0xFFC62828)),
   ];
 
-  /// מיפוי ערך שמור (אנגלית/עברית) לתצוגה בעברית
+  /// מיפוי ערך שמור (אנגלית/עברית) לתצוגה בעברית – מונע גלישה לאנגלית
   static String _moodDisplay(String? raw) {
     if (raw == null || raw.isEmpty) return 'לא עודכן';
     final lower = raw.toLowerCase();
     if (lower == 'bloom' || lower == 'פורח') return 'פורח';
     if (lower == 'flow' || lower == 'זורם') return 'זורם';
-    if (lower == 'מתוח') return 'מתוח';
-    if (lower == 'מנותק') return 'מנותק';
-    if (lower == 'שחוק') return 'שחוק';
+    if (lower == 'tense' || lower == 'מתוח') return 'מתוח';
+    if (lower == 'disconnected' || lower == 'מנותק') return 'מנותק';
+    if (lower == 'burned_out' || lower == 'שחוק') return 'שחוק';
     return raw;
   }
 
@@ -583,17 +583,24 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     );
   }
 
+  /// חיצי שיפור/החמרה – משנים את הסטטוס בפועל (דרגה אחת למעלה/למטה) ולא רק את ה-trend.
   Future<void> _setMoodTrend(Teacher teacher, String trend) async {
-    final current = _moodTrendUpdates[teacher.id] ?? teacher.moodTrend;
-    final newTrend = current == trend ? null : trend;
+    final currentRaw = _moodUpdates[teacher.id] ?? teacher.moodStatus;
+    final display = _moodDisplay(currentRaw);
+    if (display == 'לא עודכן') return;
+    final idx = _moodLevels.indexWhere((e) => e.label == display);
+    if (idx < 0) return;
+    int newIdx = trend == 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= _moodLevels.length) return;
+    final newStatus = _moodLevels[newIdx].id;
     setState(() {
-      if (newTrend != null) _moodTrendUpdates[teacher.id] = newTrend;
-      else _moodTrendUpdates.remove(teacher.id);
+      _moodUpdates[teacher.id] = newStatus;
+      _moodTrendUpdates[teacher.id] = trend;
     });
     await _saveMoodFull(
       teacher,
-      _moodUpdates[teacher.id] ?? teacher.moodStatus,
-      newTrend,
+      newStatus,
+      trend,
       _moodNoteUpdates[teacher.id] ?? teacher.moodWeekNote,
     );
   }

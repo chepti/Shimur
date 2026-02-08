@@ -7,6 +7,7 @@ import '../widgets/hebrew_gregorian_date.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
 import 'engagement_survey_screen.dart';
+import 'recommended_actions_screen.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
@@ -446,9 +447,11 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  HebrewGregorianDateText(
-                                    date: action.date,
-                                  ),
+                                  action.date == null
+                                      ? const Text('ללא תאריך')
+                                      : HebrewGregorianDateText(
+                                          date: action.date!,
+                                        ),
                                   if (action.notes != null &&
                                       action.notes!.isNotEmpty)
                                     Text(action.notes!),
@@ -464,7 +467,41 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  // בחר ממאגר פעולות מומלצות (למידה הדדית)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final type = await Navigator.push<String>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RecommendedActionsScreen(
+                            pickerMode: true,
+                          ),
+                        ),
+                      );
+                      if (type != null && type.isNotEmpty && mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddActionScreen(
+                              teacherId: widget.teacherId,
+                              suggestedType: type,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.lightbulb_outline, size: 20),
+                    label: const Text('בחר ממאגר פעולות מומלצות'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF11a0db),
+                      side: const BorderSide(color: Color(0xFF11a0db)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(

@@ -19,6 +19,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   kosher_dart: ^2.0.18
+  material_hebrew_date_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:

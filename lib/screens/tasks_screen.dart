@@ -176,9 +176,11 @@ class _TasksScreenState extends State<TasksScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                HebrewGregorianDateText(
-                                  date: action.date,
-                                ),
+                                action.date == null
+                                    ? const Text('ללא תאריך')
+                                    : HebrewGregorianDateText(
+                                        date: action.date!,
+                                      ),
                                 if (action.notes != null &&
                                     action.notes!.isNotEmpty)
                                   Padding(

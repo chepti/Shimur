@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import 'recommended_actions_screen.dart';
 
 // צבעי הדגשה למסך הגדרות
 const Color _AccentRedDark = Color(0xFFAC2B31);
@@ -108,6 +109,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 20),
                   _buildSectionTitle('דורשים טיפול', _AccentRed),
                   _buildNeedAttentionCard(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle('למידה הדדית', _AccentGreen),
+                  _buildRecommendedActionsCard(),
                   const SizedBox(height: 24),
                   _buildSignOutCard(),
                   const SizedBox(height: 80),
@@ -498,6 +502,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 )),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecommendedActionsCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: _AccentGreen.withValues(alpha: 0.2),
+          child: const Icon(Icons.lightbulb_outline, color: _AccentGreen),
+        ),
+        title: const Text(
+          'מאגר פעולות מומלצות',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: const Text(
+          'בחר, הוסף, דרג והגיב – למידה הדדית בין מנהלים',
+        ),
+        trailing: const Icon(Icons.chevron_left),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RecommendedActionsScreen(
+                pickerMode: false,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

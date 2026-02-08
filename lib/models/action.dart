@@ -1,7 +1,8 @@
 class Action {
   final String id;
   final String type;
-  final DateTime date;
+  /// תאריך ביצוע – null = "ללא תאריך" (גמיש).
+  final DateTime? date;
   final String? notes;
   final bool completed;
   final DateTime createdAt;
@@ -9,7 +10,7 @@ class Action {
   Action({
     required this.id,
     required this.type,
-    required this.date,
+    this.date,
     this.notes,
     required this.completed,
     required this.createdAt,
@@ -18,7 +19,7 @@ class Action {
   Map<String, dynamic> toMap() {
     return {
       'type': type,
-      'date': date.toIso8601String(),
+      'date': date?.toIso8601String(), // null = "ללא תאריך", נשמר כדי ש־orderBy יעבוד
       'notes': notes,
       'completed': completed,
       'createdAt': createdAt.toIso8601String(),
@@ -29,9 +30,7 @@ class Action {
     return Action(
       id: id,
       type: map['type'] ?? '',
-      date: map['date'] != null
-          ? DateTime.parse(map['date'])
-          : DateTime.now(),
+      date: map['date'] != null ? DateTime.parse(map['date']) : null,
       notes: map['notes'],
       completed: map['completed'] ?? false,
       createdAt: map['createdAt'] != null

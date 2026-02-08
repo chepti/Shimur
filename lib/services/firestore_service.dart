@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
 import '../models/action.dart';
 import '../models/manager_settings.dart';
+import '../models/recommended_action.dart';
+import '../models/recommended_action_comment.dart';
 import '../services/auth_service.dart';
 
 class FirestoreService {
@@ -206,7 +208,8 @@ class FirestoreService {
       
       for (var actionDoc in actionsSnapshot.docs) {
         final action = Action.fromMap(actionDoc.id, actionDoc.data());
-        if (!thisWeekOnly || (action.date.isAfter(now) && action.date.isBefore(weekFromNow))) {
+        final d = action.date;
+        if (!thisWeekOnly || (d != null && d.isAfter(now) && d.isBefore(weekFromNow))) {
           allActions.add({
             'action': action,
             'teacherId': teacherDoc.id,
@@ -216,8 +219,14 @@ class FirestoreService {
       }
     }
     
-    allActions.sort((a, b) => 
-        (a['action'] as Action).date.compareTo((b['action'] as Action).date));
+    allActions.sort((a, b) {
+      final da = (a['action'] as Action).date;
+      final db = (b['action'] as Action).date;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
     return allActions;
   }
 
@@ -233,10 +242,12 @@ class FirestoreService {
     // הוספת הפעולה עצמה
     await teacherRef.collection('actions').add(action.toMap());
 
-    // עדכון תאריך אינטראקציה אחרונה למורה
-    await teacherRef.update({
-      'lastInteractionDate': action.date.toIso8601String(),
-    });
+    // עדכון תאריך אינטראקציה אחרונה למורה (רק אם נבחר תאריך)
+    if (action.date != null) {
+      await teacherRef.update({
+        'lastInteractionDate': action.date!.toIso8601String(),
+      });
+    }
   }
 
   Future<void> updateAction(String teacherId, Action action) async {
@@ -296,6 +307,118 @@ class FirestoreService {
         .collection('settings')
         .doc(_managerSettingsDocId)
         .set(settings.toMap());
+  }
+
+  // ========== מאגר פעולות מומלצות (למידה הדדית) ==========
+  static const String _recommendedActionsCollection = 'recommended_actions';
+
+  Stream<List<RecommendedAction>> getRecommendedActionsStream() {
+    return _firestore
+        .collection(_recommendedActionsCollection)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => RecommendedAction.fromMap(doc.id, doc.data()))
+          .toList();
+    });
+  }
+
+  Future<void> addRecommendedAction({
+    required String type,
+    required bool isAnonymous,
+  }) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    await _firestore.collection(_recommendedActionsCollection).add({
+      'type': type,
+      'addedByUserId': isAnonymous ? null : _currentUserId,
+      'isAnonymous': isAnonymous,
+      'createdAt': DateTime.now().toIso8601String(),
+      'ratingSum': 0,
+      'ratingCount': 0,
+      'ratingByUserId': <String, int>{},
+    });
+  }
+
+  /// מעדכן דירוג של המשתמש הנוכחי (1–5). אם כבר דירג – מעדכן.
+  Future<void> setRecommendedActionRating(String recommendedActionId, int rating) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+    if (rating < 1 || rating > 5) return;
+
+    final ref = _firestore
+        .collection(_recommendedActionsCollection)
+        .doc(recommendedActionId);
+    await _firestore.runTransaction((tx) async {
+      final doc = await tx.get(ref);
+      if (!doc.exists) return;
+
+      final data = doc.data()!;
+      final prevByUser = Map<String, int>.from(
+        (data['ratingByUserId'] as Map<dynamic, dynamic>?)?.map(
+          (k, v) => MapEntry(k.toString(), v as int),
+        ) ?? {},
+      );
+      final prevSum = data['ratingSum'] as int? ?? 0;
+      final prevCount = data['ratingCount'] as int? ?? 0;
+      final oldRating = prevByUser[_currentUserId];
+
+      int newSum = prevSum;
+      int newCount = prevCount;
+      if (oldRating != null) {
+        newSum -= oldRating;
+        newCount -= 1;
+      }
+      newSum += rating;
+      newCount += 1;
+      prevByUser[_currentUserId!] = rating;
+
+      tx.update(ref, {
+        'ratingSum': newSum,
+        'ratingCount': newCount,
+        'ratingByUserId': prevByUser,
+      });
+    });
+  }
+
+  Stream<List<RecommendedActionComment>> getRecommendedActionCommentsStream(
+    String recommendedActionId,
+  ) {
+    return _firestore
+        .collection(_recommendedActionsCollection)
+        .doc(recommendedActionId)
+        .collection('comments')
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => RecommendedActionComment.fromMap(
+                doc.id,
+                doc.data(),
+              ))
+          .toList();
+    });
+  }
+
+  Future<void> addRecommendedActionComment({
+    required String recommendedActionId,
+    required String text,
+    required bool isAnonymous,
+  }) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+    if (text.trim().isEmpty) return;
+
+    await _firestore
+        .collection(_recommendedActionsCollection)
+        .doc(recommendedActionId)
+        .collection('comments')
+        .add({
+      'recommendedActionId': recommendedActionId,
+      'userId': isAnonymous ? null : _currentUserId,
+      'isAnonymous': isAnonymous,
+      'text': text.trim(),
+      'createdAt': DateTime.now().toIso8601String(),
+    });
   }
 }
 

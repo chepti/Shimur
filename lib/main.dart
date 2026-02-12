@@ -127,7 +127,7 @@ class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onItemSelected;
 
-  static const Color _navBackground = Color(0xFFed1c24);
+  static const Color _navBackground = Color(0xFF11a0db);
 
   static const List<Color> _accentColors = [
     Color(0xFFed1c24),
@@ -168,8 +168,8 @@ class CustomBottomNavBar extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 const double horizontalPadding = 16;
-                const double barHeight = 60;
-                const double circleRadius = 14;
+                const double barHeight = 64;
+                const double circleRadius = 16;
 
                 final double barWidth =
                     constraints.maxWidth - (horizontalPadding * 2);
@@ -199,7 +199,7 @@ class CustomBottomNavBar extends StatelessWidget {
                           height: barHeight,
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(32),
+                            borderRadius: BorderRadius.circular(40),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.12),
@@ -230,15 +230,26 @@ class CustomBottomNavBar extends StatelessWidget {
                       ),
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        top: 8,
+                        curve: Curves.easeOutQuad,
+                        top: -circleRadius + 6,
                         left: leftForCircle,
                         child: Container(
                           width: circleRadius * 2,
                           height: circleRadius * 2,
                           decoration: BoxDecoration(
-                            color: _navBackground,
+                            color: Colors.white,
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _navBackground,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
                         ),
                       ),

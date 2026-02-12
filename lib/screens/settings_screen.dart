@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import 'add_teacher_screen.dart';
 
 // צבעי הדגשה למסך הגדרות
 const Color _AccentRedDark = Color(0xFFAC2B31);
@@ -109,6 +110,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSectionTitle('דורשים טיפול', _AccentRed),
                   _buildNeedAttentionCard(),
                   const SizedBox(height: 20),
+                _buildSectionTitle('צוות המורים', _AccentRedDark),
+                _buildTeachersManagementCard(),
+                const SizedBox(height: 20),
                   _buildSectionTitle('שאלון מעורבות', _AccentGreen),
                   _buildFormLinkCard(),
                   const SizedBox(height: 24),
@@ -505,6 +509,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildTeachersManagementCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.group_add, color: _AccentRedDark, size: 22),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ניהול צוות המורים',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'הוסף מורים חדשים/ות לצוות הבית ספרי.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const AddTeacherScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('הוסף מורה חדש/ה'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _AccentRedDark,
+                  side: const BorderSide(color: _AccentRedDark),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormLinkCard() {
     return Card(
       elevation: 2,
@@ -520,7 +576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'קישור לשאלון מעורבות – לשליחה לקבוצת הצוות',
+                    'קישור כללי לשאלון מעורבות – לשליחה לקבוצת הצוות',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -528,7 +584,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'לקבלת קישור אישי למורה, היכנסי לכרטיס מורה ולחצי על כפתור השיתוף שם.',
+              'כל מורה נכנס, כותב את שמו המלא, ממלא ושולח – והנתונים נכנסים לאפליקציה.',
               style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
@@ -537,13 +593,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   try {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('פתחי כרטיס של מורה ספציפי ולחצי שם על כפתור השיתוף.'),
-                    ),
-                  );
+                    final link = await _firestoreService.getOrCreateSchoolFormLink();
+                    await Clipboard.setData(ClipboardData(text: link));
                     if (mounted) {
-                    // לא נדרש לבצע פעולה כאן – ההסבר בלבד.
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('הקישור הועתק ללוח. שלחי לקבוצת הצוות.')),
+                      );
                     }
                   } catch (e) {
                     if (mounted) {

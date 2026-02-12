@@ -281,10 +281,10 @@ class FirestoreService {
     return null;
   }
 
-  /// קישור לטופס חיצוני עבור מורה ספציפי.
-  /// המנהל שולח את הקישור למורה, המורה ממלא בטופס בדפדפן,
-  /// והנתונים נכתבים ישירות ל-Firestore עבור אותו מורה.
-  Future<String> getTeacherFormLink(String teacherId) async {
+  /// קישור כללי לטופס החיצוני של בית הספר.
+  /// המנהל מעתיק את הקישור מעמוד ההגדרות, שולח לקבוצת הצוות,
+  /// וכל מורה נכנס, כותב את שמו המלא וממלא את השאלון.
+  Future<String> getOrCreateSchoolFormLink() async {
     if (_currentUserId == null) throw Exception('לא מחובר');
 
     var settings = await getManagerSettings();
@@ -298,8 +298,8 @@ class FirestoreService {
     }
 
     const baseUrl = 'https://shimur.web.app';
-    // s = schoolId (uid של המנהל), id = teacherId, t = טוקן אבטחה לטופס
-    return '$baseUrl/form.html?s=$_currentUserId&id=$teacherId&t=$token';
+    // s = schoolId (uid של המנהל), t = טוקן אבטחה לטופס הכללי
+    return '$baseUrl/form.html?s=$_currentUserId&t=$token';
   }
 
   // ========== הגדרות מנהל ==========

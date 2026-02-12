@@ -5,7 +5,6 @@ import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/teacher_card.dart';
 import '../widgets/hebrew_gregorian_date.dart';
-import 'add_teacher_screen.dart';
 import 'teacher_details_screen.dart';
 import '../models/action.dart' as teacher_action;
 
@@ -254,7 +253,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required int dailyGoal,
   }) {
     return FutureBuilder<int>(
-      future: firestoreService.getTodayCompletedActionsCount(),
+      future: _firestoreService.getTodayCompletedActionsCount(),
       builder: (context, snapshot) {
         final completedToday = snapshot.data ?? 0;
 
@@ -412,12 +411,84 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     );
   }
 
-  /// Bottom sheet לבחירת מורה מהירה ויצירת פעולה מסוג "מילה טובה קטנה"
-  void _openGoodWordTeacherPicker(
+  /// עיגול קטן לאינטראקציה מהירה (מילה טובה / דיבור קצר / נפגשתי)
+  Widget _buildMiniInteractionCircle({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  color.withOpacity(0.18),
+                  Colors.white,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(
+                color: color.withOpacity(0.7),
+                width: 3,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bottom sheet לבחירת מורה מהירה ויצירת פעולה מהירה מסוג התייחסות
+  void _openInteractionTeacherPicker(
     BuildContext context,
-    List<Teacher> teachers,
-  ) {
+    List<Teacher> teachers, {
+    required String interactionType,
+    required String sheetTitle,
+    required String sheetSubtitle,
+    required String snackbarPrefix,
+  }) {
     final firestoreService = _firestoreService;
+    final nowForSort = DateTime.now();
+
+    final sortedTeachers = List<Teacher>.from(teachers);
+    sortedTeachers.sort((a, b) {
+      int daysSinceA = a.lastInteractionDate == null
+          ? 10000
+          : nowForSort.difference(a.lastInteractionDate!).inDays;
+      int daysSinceB = b.lastInteractionDate == null
+          ? 10000
+          : nowForSort.difference(b.lastInteractionDate!).inDays;
+      return daysSinceB.compareTo(daysSinceA); // יותר ימים = קודם
+    });
+
+    String searchQuery = '';
+    bool showSearchField = false;
 
     showModalBottomSheet(
       context: context,
@@ -427,135 +498,204 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
       builder: (sheetContext) {
         return Directionality(
           textDirection: TextDirection.rtl,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'למי אמרת מילה טובה?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'בחר מורה אחד או כמה, והמערכת תשמור את האינטראקציה הקטנה.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: teachers.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final teacher = teachers[index];
-                        final statusColor =
-                            _statusColor(teacher.moodStatus ?? teacher.status);
-                        final now = DateTime.now();
-                        String daysText;
-                        if (teacher.lastInteractionDate == null) {
-                          daysText = 'עדיין לא נוצר יחס';
-                        } else {
-                          final diffDays =
-                              now.difference(teacher.lastInteractionDate!).inDays;
-                          if (diffDays == 0) {
-                            daysText = 'היום היתה אינטראקציה אחרונה';
-                          } else if (diffDays == 1) {
-                            daysText = 'אתמול היתה אינטראקציה אחרונה';
-                          } else {
-                            daysText = '$diffDays ימים מהיחס האחרון';
-                          }
-                        }
-                        final roleText = teacher.roles.isNotEmpty
-                            ? teacher.roles.join(', ')
-                            : null;
-                        final subtitleText = roleText != null
-                            ? '$roleText · $daysText'
-                            : daysText;
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.person_outline,
-                            color: Color(0xFF11a0db),
-                          ),
-                          title: Text(
-                            teacher.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            subtitleText,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          trailing: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: statusColor,
-                            ),
-                          ),
-                          onTap: () async {
-                            final action = teacher_action.Action(
-                              id: '',
-                              type: 'מילה טובה קטנה',
-                              date: DateTime.now(),
-                              notes: null,
-                              completed: true,
-                              createdAt: DateTime.now(),
-                            );
+          child: StatefulBuilder(
+            builder: (modalContext, setModalState) {
+              final query = searchQuery.trim().toLowerCase();
+              final visibleTeachers = query.isEmpty
+                  ? sortedTeachers
+                  : sortedTeachers
+                      .where((t) => t.name.toLowerCase().contains(query))
+                      .toList();
 
-                            try {
-                              await firestoreService.addAction(
-                                teacher.id,
-                                action,
-                              );
-                              if (Navigator.of(sheetContext).canPop()) {
-                                Navigator.of(sheetContext).pop();
-                              }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'נשמרה מילה טובה למורה ${teacher.name}',
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.search),
+                            tooltip: 'חיפוש לפי שם',
+                            onPressed: () {
+                              setModalState(
+                                  () => showSearchField = !showSearchField);
+                            },
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                sheetTitle,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        sheetSubtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (showSearchField) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search),
+                            hintText: 'חפש/י מורה לפי שם',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                            ),
+                            isDense: true,
+                          ),
+                          onChanged: (value) {
+                            setModalState(() {
+                              searchQuery = value;
+                            });
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Flexible(
+                        child: visibleTeachers.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'לא נמצאו מורים שמתאימים לחיפוש',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 13,
                                   ),
                                 ),
-                              );
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('שגיאה בשמירת מילה טובה: $e'),
-                                ),
-                              );
-                            }
-                          },
-                        );
-                      },
-                    ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: visibleTeachers.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final teacher = visibleTeachers[index];
+                                  final statusColor = _statusColor(
+                                      teacher.moodStatus ?? teacher.status);
+                                  final now = DateTime.now();
+                                  String daysText;
+                                  if (teacher.lastInteractionDate == null) {
+                                    daysText = 'עדיין לא נוצר יחס';
+                                  } else {
+                                    final diffDays = now
+                                        .difference(teacher.lastInteractionDate!)
+                                        .inDays;
+                                    if (diffDays == 0) {
+                                      daysText = 'היום היתה אינטראקציה אחרונה';
+                                    } else if (diffDays == 1) {
+                                      daysText =
+                                          'אתמול היתה אינטראקציה אחרונה';
+                                    } else {
+                                      daysText =
+                                          '$diffDays ימים מהיחס האחרון';
+                                    }
+                                  }
+                                  final roleText = teacher.roles.isNotEmpty
+                                      ? teacher.roles.join(', ')
+                                      : null;
+                                  final infoParts = <String>[];
+                                  if (roleText != null) {
+                                    infoParts.add(roleText);
+                                  }
+                                  infoParts.add(daysText);
+                                  final infoText = infoParts.join(' · ');
+
+                                  return ListTile(
+                                    dense: true,
+                                    visualDensity: const VisualDensity(
+                                      horizontal: 0,
+                                      vertical: -2,
+                                    ),
+                                    leading: const Icon(
+                                      Icons.person_outline,
+                                      color: Color(0xFF11a0db),
+                                    ),
+                                    title: Text(
+                                      '${teacher.name} – $infoText',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: statusColor,
+                                      ),
+                                    ),
+                                    onTap: () async {
+                                      final now = DateTime.now();
+                                      final action = teacher_action.Action(
+                                        id: '',
+                                        type: interactionType,
+                                        date: now,
+                                        notes: null,
+                                        completed: true,
+                                        createdAt: now,
+                                      );
+
+                                      try {
+                                        await firestoreService.addAction(
+                                          teacher.id,
+                                          action,
+                                        );
+                                        if (Navigator.of(sheetContext).canPop()) {
+                                          Navigator.of(sheetContext).pop();
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '$snackbarPrefix ${teacher.name}',
+                                            ),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                'שגיאה בשמירת ההתייחסות: $e'),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         );
       },

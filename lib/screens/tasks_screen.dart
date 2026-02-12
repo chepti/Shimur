@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Action;
 import '../models/action.dart';
 import '../services/firestore_service.dart';
 import '../widgets/hebrew_gregorian_date.dart';
+import 'add_action_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -44,6 +45,66 @@ class _TasksScreenState extends State<TasksScreen> {
         );
       }
     }
+  }
+
+  Future<void> _openAddAction() async {
+    final teachers = await _firestoreService.getTeachersStream().first;
+    if (!mounted) return;
+
+    if (teachers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('נא להוסיף מורים קודם')),
+      );
+      return;
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'בחר מורה להוספת פעולה',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: teachers.length,
+                  itemBuilder: (context, index) {
+                    final teacher = teachers[index];
+                    return ListTile(
+                      leading:
+                          const Icon(Icons.person, color: Color(0xFF11a0db)),
+                      title: Text(teacher.name),
+                      onTap: () async {
+                        Navigator.pop(sheetContext);
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AddActionScreen(
+                              teacherId: teacher.id,
+                            ),
+                          ),
+                        );
+                        await _loadActions();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _toggleActionCompleted(
@@ -173,6 +234,11 @@ class _TasksScreenState extends State<TasksScreen> {
                         ),
                     ],
                   ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _openAddAction,
+          backgroundColor: const Color(0xFF11a0db),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }

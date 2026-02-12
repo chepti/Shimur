@@ -30,48 +30,141 @@ function computeDomainScores(itemScores) {
   return domainScores;
 }
 
+function corsHeaders(res) {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+async function getSchoolIdFromToken(db, token) {
+  const snapshot = await db.collectionGroup('settings')
+    .where('schoolFormToken', '==', token.trim())
+    .limit(1)
+    .get();
+  if (snapshot.empty) return null;
+  const pathParts = snapshot.docs[0].ref.path.split('/');
+  return pathParts[1];
+}
+
+exports.getFormTeachers = functions.https.onRequest(async (req, res) => {
+  corsHeaders(res);
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const token = req.method === 'GET' ? req.query.t : (req.body?.token);
+    if (!token) {
+      res.status(400).json({ error: 'חסר טוקן' });
+      return;
+    }
+
+    const db = admin.firestore();
+    const schoolId = await getSchoolIdFromToken(db, token);
+    if (!schoolId) {
+      res.status(404).json({ error: 'קישור לא תקין' });
+      return;
+    }
+
+    const teachersSnapshot = await db.collection('schools').doc(schoolId)
+      .collection('teachers')
+      .orderBy('createdAt', 'asc')
+      .get();
+
+    const teachers = teachersSnapshot.docs.map((d) => ({
+      id: d.id,
+      name: d.data().name || '',
+    })).filter((t) => t.name);
+
+    res.status(200).json({ teachers });
+  } catch (err) {
+    console.error('getFormTeachers error:', err);
+    res.status(500).json({ error: 'שגיאה' });
+  }
+});
+
 exports.submitEngagementForm = functions.https.onRequest(async (req, res) => {
+  corsHeaders(res);
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
 
-  res.set('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Methods', 'POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(204).send('');
-    return;
-  }
-
   try {
-    const { token, itemScores, itemNotes, motivationStyles, roles, engagementNote } = req.body;
+    const {
+      token,
+      teacherId,
+      teacherName,
+      itemScores,
+      itemNotes,
+      motivationStyles,
+      roles,
+      engagementNote,
+    } = req.body;
 
     if (!token || typeof token !== 'string') {
       res.status(400).json({ error: 'חסר טוקן' });
       return;
     }
-
     if (!itemScores || typeof itemScores !== 'object') {
       res.status(400).json({ error: 'חסרים ציוני השאלון' });
       return;
     }
 
     const db = admin.firestore();
-    const snapshot = await db.collectionGroup('teachers')
-      .where('formToken', '==', token.trim())
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
+    const schoolId = await getSchoolIdFromToken(db, token);
+    if (!schoolId) {
       res.status(404).json({ error: 'קישור לא תקין או שפג תוקפו' });
       return;
     }
 
-    const doc = snapshot.docs[0];
-    const pathParts = doc.ref.path.split('/');
-    const schoolId = pathParts[1];
-    const teacherId = pathParts[3];
+    const teachersRef = db.collection('schools').doc(schoolId).collection('teachers');
+    let targetTeacherId = teacherId;
+
+    if (!targetTeacherId && teacherName && typeof teacherName === 'string') {
+      const name = teacherName.trim();
+      if (!name) {
+        res.status(400).json({ error: 'נא לבחור מורה או להזין את שמך' });
+        return;
+      }
+      const newTeacher = {
+        name,
+        seniorityYears: 0,
+        totalSeniorityYears: 0,
+        status: 'green',
+        createdAt: new Date().toISOString(),
+        workloadPercent: 86,
+        satisfactionRating: 3,
+        belongingRating: 3,
+        workloadRating: 3,
+        absencesThisYear: 0,
+        specialActivities: [],
+        busyWeekdays: [],
+        motivationStyles: [],
+        engagementSignals: [],
+      };
+      const addRes = await teachersRef.add(newTeacher);
+      targetTeacherId = addRes.id;
+    } else if (!targetTeacherId) {
+      res.status(400).json({ error: 'נא לבחור מורה או להזין את שמך' });
+      return;
+    }
+
+    const teacherRef = teachersRef.doc(targetTeacherId);
+    const teacherDoc = await teacherRef.get();
+    if (!teacherDoc.exists) {
+      res.status(404).json({ error: 'מורה לא נמצא' });
+      return;
+    }
 
     const itemScoresInt = {};
     for (let i = 1; i <= 12; i++) {
@@ -88,7 +181,7 @@ exports.submitEngagementForm = functions.https.onRequest(async (req, res) => {
     const domainScores = computeDomainScores(itemScoresInt);
     const itemNotesObj = itemNotes && typeof itemNotes === 'object' ? itemNotes : {};
     const motivationList = Array.isArray(motivationStyles) ? motivationStyles : [];
-    const rolesList = Array.isArray(roles) ? roles : (typeof roles === 'string' ? roles.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const rolesList = Array.isArray(roles) ? roles : (typeof roles === 'string' ? roles.split(',').map((s) => s.trim()).filter(Boolean) : []);
 
     const updateData = {
       engagementItemScores: itemScoresInt,
@@ -99,7 +192,7 @@ exports.submitEngagementForm = functions.https.onRequest(async (req, res) => {
       engagementNote: engagementNote && typeof engagementNote === 'string' ? engagementNote.trim() || null : null,
     };
 
-    await doc.ref.update(updateData);
+    await teacherRef.update(updateData);
 
     res.status(200).json({ success: true });
   } catch (err) {

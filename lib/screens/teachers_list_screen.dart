@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/manager_settings.dart';
 import '../services/firestore_service.dart';
@@ -10,7 +11,7 @@ import 'teacher_details_screen.dart';
 import '../models/action.dart' as teacher_action;
 
 class TeachersListScreen extends StatefulWidget {
-  const TeachersListScreen({Key? key}) : super(key: key);
+  const TeachersListScreen({super.key});
 
   @override
   State<TeachersListScreen> createState() => _TeachersListScreenState();
@@ -41,6 +42,29 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
           elevation: 1,
           centerTitle: true,
           surfaceTintColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.link, color: Color(0xFF11a0db)),
+              tooltip: 'שתף קישור לשאלון מעורבות',
+              onPressed: () async {
+                try {
+                  final link = await _firestoreService.getOrCreateSchoolFormLink();
+                  await Clipboard.setData(ClipboardData(text: link));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('הקישור הועתק – שלחי לקבוצת הצוות')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('שגיאה: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
           title: SizedBox(
             height: 40,
             child: Image.network(
@@ -275,9 +299,9 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.favorite_border, color: Color(0xFF11a0db)),
                 SizedBox(width: 8),
                 Text(
@@ -324,9 +348,9 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     width: 4,
                   ),
                 ),
-                child: Column(
+                child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(
                       Icons.chat_bubble_outline,
                       size: 40,

@@ -81,10 +81,17 @@
       height: 8px;
       accent-color: #11a0db;
     }
+    .slider-row input[type="range"].slider-default {
+      accent-color: #9e9e9e;
+    }
     .slider-row .val {
       min-width: 24px;
       font-weight: 700;
       color: #11a0db;
+    }
+    .slider-row .val.val-default {
+      color: #9e9e9e;
+      font-weight: 500;
     }
     .q-item input[type="text"] {
       width: 100%;
@@ -94,8 +101,8 @@
       font-size: 0.9rem;
     }
     .motivation-item {
-      margin-bottom: 8px;
-      padding: 10px 12px;
+      margin-bottom: 16px;
+      padding: 14px 16px;
       border: 1px solid #ddd;
       border-radius: 10px;
       cursor: pointer;
@@ -152,6 +159,16 @@
 
     <form id="form">
       <input type="hidden" name="token" id="token">
+
+      <div class="section" id="teacher-section">
+        <div class="section-title">בחר/י את שמך</div>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">אם אינך ברשימה – בחר/י "אחר" והזן/י את שמך</p>
+        <select name="teacherSelect" id="teacherSelect" class="roles-input" required>
+          <option value="">-- בחר/י מורה --</option>
+          <option value="__other__">אחר – הזן/י את שמך</option>
+        </select>
+        <input type="text" name="teacherName" id="teacherName" class="roles-input" placeholder="הזן/י את שמך" style="margin-top: 12px; display: none;">
+      </div>
 
       <div class="section">
         <div class="section-title">מדד מעורבות (גאלופ Q12)</div>
@@ -229,7 +246,25 @@
       showErr('חסר קישור תקין. נא לבקש מהמנהל/ת קישור חדש.');
     } else {
       document.getElementById('token').value = token;
+      fetch('https://us-central1-shimur.cloudfunctions.net/getFormTeachers?t=' + encodeURIComponent(token))
+        .then(r => r.json())
+        .then(data => {
+          const sel = document.getElementById('teacherSelect');
+          const otherOpt = sel.querySelector('option[value="__other__"]');
+          (data.teachers || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name;
+            sel.insertBefore(opt, otherOpt);
+          });
+        })
+        .catch(() => showErr('שגיאה בטעינת רשימת המורים'));
     }
+
+    document.getElementById('teacherSelect').addEventListener('change', function() {
+      document.getElementById('teacherName').style.display = this.value === '__other__' ? 'block' : 'none';
+      document.getElementById('teacherName').required = this.value === '__other__';
+    });
 
     const q12Container = document.getElementById('q12-container');
     Q12_QUESTIONS.forEach((q, i) => {
@@ -248,7 +283,16 @@
       `;
       const slider = div.querySelector('input[type="range"]');
       const valSpan = div.querySelector('.val');
-      slider.addEventListener('input', () => { valSpan.textContent = slider.value; });
+      function updateSliderStyle() {
+        const isDefault = slider.value === '3';
+        slider.classList.toggle('slider-default', isDefault);
+        valSpan.classList.toggle('val-default', isDefault);
+      }
+      slider.addEventListener('input', () => {
+        valSpan.textContent = slider.value;
+        updateSliderStyle();
+      });
+      updateSliderStyle();
       q12Container.appendChild(div);
     });
 
@@ -270,8 +314,12 @@
       btn.disabled = true;
 
       const formData = new FormData(e.target);
+      const teacherSelect = formData.get('teacherSelect');
+      const teacherName = (formData.get('teacherName') || '').trim();
       const payload = {
         token: formData.get('token'),
+        teacherId: teacherSelect && teacherSelect !== '__other__' ? teacherSelect : null,
+        teacherName: teacherSelect === '__other__' ? teacherName : null,
         itemScores: {},
         itemNotes: {},
         motivationStyles: formData.getAll('motivation'),

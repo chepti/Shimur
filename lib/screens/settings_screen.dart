@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import 'recommended_actions_screen.dart';
 
 // צבעי הדגשה למסך הגדרות
 const Color _AccentRedDark = Color(0xFFAC2B31);
@@ -14,7 +13,7 @@ const Color _AccentGreen = Color(0xFF40AE49);
 const double _CardRadius = 20;
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -110,8 +109,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSectionTitle('דורשים טיפול', _AccentRed),
                   _buildNeedAttentionCard(),
                   const SizedBox(height: 20),
-                  _buildSectionTitle('למידה הדדית', _AccentGreen),
-                  _buildRecommendedActionsCard(),
+                  _buildSectionTitle('שאלון מעורבות', _AccentGreen),
+                  _buildFormLinkCard(),
                   const SizedBox(height: 24),
                   _buildSignOutCard(),
                   const SizedBox(height: 80),
@@ -174,11 +173,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.favorite, color: _AccentRed, size: 22),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'כמה מילים טובות ברצונך לתת?',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
@@ -258,11 +257,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.handshake, color: _AccentAmber, size: 22),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'תדירות פגישות',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
@@ -271,13 +270,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.school, color: _AccentAmber, size: 20),
+                const Icon(Icons.school, color: _AccentAmber, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(child: Text('פגוש מחנכים')),
                 SizedBox(
                   width: 100,
                   child: DropdownButtonFormField<int>(
-                    value: _settings.ruleMeetEducatorsMonths,
+                    initialValue: _settings.ruleMeetEducatorsMonths,
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -303,13 +302,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 14),
             Row(
               children: [
-                Icon(Icons.badge, color: _AccentAmber, size: 20),
+                const Icon(Icons.badge, color: _AccentAmber, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(child: Text('פגוש בעלי תפקידים')),
                 SizedBox(
                   width: 100,
                   child: DropdownButtonFormField<int>(
-                    value: _settings.ruleMeetRoleHoldersMonths,
+                    initialValue: _settings.ruleMeetRoleHoldersMonths,
                     decoration: InputDecoration(
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -347,11 +346,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.notifications_active, color: _AccentLime, size: 22),
-                const SizedBox(width: 8),
-                const Text(
+                SizedBox(width: 8),
+                Text(
                   'מתי לקבל התראות',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
@@ -413,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SizedBox(
               width: 100,
               child: DropdownButtonFormField<int>(
-                value: weekday,
+                initialValue: weekday,
                 decoration: InputDecoration(
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -474,11 +473,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(Icons.person_search, color: _AccentRed, size: 22),
-                const SizedBox(width: 8),
-                const Expanded(
+                SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     'כמה מורים להציג ברשימת "דורשים טיפול"',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -506,34 +505,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildRecommendedActionsCard() {
+  Widget _buildFormLinkCard() {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: _AccentGreen.withValues(alpha: 0.2),
-          child: const Icon(Icons.lightbulb_outline, color: _AccentGreen),
-        ),
-        title: const Text(
-          'מאגר פעולות מומלצות',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: const Text(
-          'בחר, הוסף, דרג והגיב – למידה הדדית בין מנהלים',
-        ),
-        trailing: const Icon(Icons.chevron_left),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RecommendedActionsScreen(
-                pickerMode: false,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.link, color: _AccentGreen, size: 22),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'קישור לשאלון מעורבות – לשליחה לקבוצת הצוות',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'כל מורה נכנס, בוחר את שמו, ממלא ושולח. הנתונים מוזנים לאפליקציה.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    final link = await _firestoreService.getOrCreateSchoolFormLink();
+                    await Clipboard.setData(ClipboardData(text: link));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('הקישור הועתק ללוח. שלחי לקבוצת הצוות')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('שגיאה: $e')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('העתק קישור ושתף'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _AccentGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

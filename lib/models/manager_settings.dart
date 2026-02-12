@@ -23,6 +23,9 @@ class ManagerSettings {
   /// כמה מורים להציג ב"דורשים טיפול": 'all' | '5' | '10'
   final String needAttentionLimit;
 
+  /// טוקן למילוי טופס שאלון חיצוני – קישור אחיד לכל הצוות
+  final String? schoolFormToken;
+
   const ManagerSettings({
     this.goalsGoodWordsPerDay = 10,
     this.goalsGoodWordsPerWeek = 40,
@@ -35,6 +38,7 @@ class ManagerSettings {
     this.notificationEndWeekHour = 16,
     this.notificationEndWeekMinute = 0,
     this.needAttentionLimit = '5',
+    this.schoolFormToken,
   });
 
   Map<String, dynamic> toMap() {
@@ -50,6 +54,7 @@ class ManagerSettings {
       'notificationEndWeekHour': notificationEndWeekHour,
       'notificationEndWeekMinute': notificationEndWeekMinute,
       'needAttentionLimit': needAttentionLimit,
+      'schoolFormToken': schoolFormToken,
     };
   }
 
@@ -80,6 +85,7 @@ class ManagerSettings {
       notificationEndWeekHour: _toInt(map['notificationEndWeekHour'], 16),
       notificationEndWeekMinute: _toInt(map['notificationEndWeekMinute'], 0),
       needAttentionLimit: _toString(map['needAttentionLimit'], '5'),
+      schoolFormToken: map['schoolFormToken'] as String?,
     );
   }
 
@@ -95,6 +101,7 @@ class ManagerSettings {
     int? notificationEndWeekHour,
     int? notificationEndWeekMinute,
     String? needAttentionLimit,
+    String? schoolFormToken,
   }) {
     return ManagerSettings(
       goalsGoodWordsPerDay: goalsGoodWordsPerDay ?? this.goalsGoodWordsPerDay,
@@ -108,6 +115,7 @@ class ManagerSettings {
       notificationEndWeekHour: notificationEndWeekHour ?? this.notificationEndWeekHour,
       notificationEndWeekMinute: notificationEndWeekMinute ?? this.notificationEndWeekMinute,
       needAttentionLimit: needAttentionLimit ?? this.needAttentionLimit,
+      schoolFormToken: schoolFormToken ?? this.schoolFormToken,
     );
   }
 

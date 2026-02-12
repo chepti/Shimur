@@ -115,7 +115,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                 if (displayedNeedAttention.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text(
-                    'דורשים טיפול',
+                    'המורים שלי',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -213,37 +213,20 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     );
   }
 
-  /// מורים שדורשים טיפול: סטטוס אדום/צהוב, או ללא אינטראקציה ממושכת. ממוין לפי עדיפות.
+  /// רשימת מורים ממוינת לפי כמה זמן עבר מהיחס האחרון (הכי מוזנח למעלה).
   List<Teacher> _teachersNeedingAttention(List<Teacher> teachers) {
     final now = DateTime.now();
     final list = List<Teacher>.from(teachers);
     list.sort((a, b) {
-      final scoreA = _needAttentionScore(a, now);
-      final scoreB = _needAttentionScore(b, now);
-      return scoreB.compareTo(scoreA); // גבוה יותר = קודם
+      final daysA = a.lastInteractionDate == null
+          ? 10000
+          : now.difference(a.lastInteractionDate!).inDays;
+      final daysB = b.lastInteractionDate == null
+          ? 10000
+          : now.difference(b.lastInteractionDate!).inDays;
+      return daysB.compareTo(daysA); // יותר ימים = קודם
     });
     return list;
-  }
-
-  int _needAttentionScore(Teacher t, DateTime now) {
-    int score = 0;
-    if (t.status == 'red') {
-      score += 100;
-    } else if (t.status == 'yellow') {
-      score += 50;
-    }
-    final last = t.lastInteractionDate;
-    if (last == null) {
-      score += 30;
-    } else {
-      final days = now.difference(last).inDays;
-      if (days > 14) {
-        score += 20;
-      } else if (days > 7) {
-        score += 10;
-      }
-    }
-    return score;
   }
 
   /// אזור \"מילה טובה\" – טקסט + כפתור עגול דרמטי ללא קונטיינר מסביב

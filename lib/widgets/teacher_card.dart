@@ -9,74 +9,89 @@ class TeacherCard extends StatelessWidget {
   final int actionsCount;
 
   const TeacherCard({
-    Key? key,
+    super.key,
     required this.teacher,
     required this.onTap,
     this.actionsCount = 0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    String lastInteractionText;
-    if (teacher.lastInteractionDate == null) {
-      lastInteractionText = 'עדיין לא נוצר יחס';
-    } else {
-      final diffDays = now.difference(teacher.lastInteractionDate!).inDays;
-      if (diffDays == 0) {
-        lastInteractionText = 'היום היתה אינטראקציה אחרונה';
-      } else if (diffDays == 1) {
-        lastInteractionText = 'אתמול היתה אינטראקציה אחרונה';
-      } else {
-        lastInteractionText = '$diffDays ימים מהיחס האחרון';
-      }
-    }
+    final last = teacher.lastInteractionDate;
+    final int? daysSinceLast =
+        last == null ? null : now.difference(last).inDays;
+    final String daysNumberText =
+        daysSinceLast != null ? daysSinceLast.toString() : '—';
+    final String daysLabelText = daysSinceLast == null
+        ? 'עדיין לא נוצר יחס'
+        : (daysSinceLast == 1 ? 'יום מהיחס האחרון' : 'ימים מהיחס האחרון');
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    child: Text(
-                      teacher.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          teacher.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (teacher.roles.isNotEmpty)
+                          Row(
+                            children: _buildRoleIcons(teacher.roles),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      StatusIndicator(
+                        status: teacher.moodStatus ?? teacher.status,
+                        size: 20,
                       ),
-                    ),
-                  ),
-                  StatusIndicator(
-                    status: teacher.moodStatus ?? teacher.status,
+                      const SizedBox(height: 6),
+                      Text(
+                        daysNumberText,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        daysLabelText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (teacher.roles.isNotEmpty)
-                    _buildInfoChip(
-                      teacher.roles.join(', '),
-                      Icons.badge_outlined,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _buildInfoChip(
-                lastInteractionText,
-                Icons.access_time,
               ),
               if (_parseNextActionDate(teacher.nextActionDate) != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _buildDateChip(
                   _parseNextActionDate(teacher.nextActionDate!)!,
                   Icons.event,
@@ -84,7 +99,7 @@ class TeacherCard extends StatelessWidget {
                 ),
               ],
               if (actionsCount > 0) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _buildInfoChip(
                   '$actionsCount פעולות',
                   Icons.check_circle,
@@ -95,6 +110,39 @@ class TeacherCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildRoleIcons(List<String> roles) {
+    final displayed = roles.take(4).toList();
+    return displayed
+        .map(
+          (role) => Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Icon(
+              _iconForRole(role),
+              size: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  IconData _iconForRole(String role) {
+    final r = role.toLowerCase();
+    if (r.contains('מחנ')) {
+      return Icons.groups;
+    }
+    if (r.contains('רכז')) {
+      return Icons.hub_outlined;
+    }
+    if (r.contains('סגן') || r.contains('מנה')) {
+      return Icons.school;
+    }
+    if (r.contains('יועץ') || r.contains('יועצ')) {
+      return Icons.psychology_alt_outlined;
+    }
+    return Icons.person_outline;
   }
 
   Widget _buildInfoChip(String text, IconData icon, {Color? color}) {

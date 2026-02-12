@@ -75,25 +75,26 @@ class TeacherCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        daysNumberText,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  RichText(
+                    text: TextSpan(
+                      text: daysNumberText,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        daysLabelText,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                      children: [
+                        const TextSpan(text: ' '),
+                        TextSpan(
+                          text: daysLabelText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   if (actionsCount > 0)
                     _buildInfoChip(

@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
 
@@ -30,12 +31,6 @@ function computeDomainScores(itemScores) {
   return domainScores;
 }
 
-function corsHeaders(res) {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-}
-
 async function getSchoolIdFromToken(db, token) {
   const snapshot = await db.collectionGroup('settings')
     .where('schoolFormToken', '==', token.trim())
@@ -46,18 +41,14 @@ async function getSchoolIdFromToken(db, token) {
   return pathParts[1];
 }
 
-exports.getFormTeachers = functions.https.onRequest(async (req, res) => {
-  corsHeaders(res);
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-  if (req.method !== 'GET' && req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+exports.getFormTeachers = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
 
-  try {
+    try {
     const token = req.method === 'GET' ? req.query.t : (req.body?.token);
     if (!token) {
       res.status(400).json({ error: 'חסר טוקן' });
@@ -82,24 +73,21 @@ exports.getFormTeachers = functions.https.onRequest(async (req, res) => {
     })).filter((t) => t.name);
 
     res.status(200).json({ teachers });
-  } catch (err) {
-    console.error('getFormTeachers error:', err);
-    res.status(500).json({ error: 'שגיאה' });
-  }
+    } catch (err) {
+      console.error('getFormTeachers error:', err);
+      res.status(500).json({ error: 'שגיאה' });
+    }
+  });
 });
 
-exports.submitEngagementForm = functions.https.onRequest(async (req, res) => {
-  corsHeaders(res);
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
-  }
+exports.submitEngagementForm = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
 
-  try {
+    try {
     const {
       token,
       teacherId,
@@ -195,8 +183,9 @@ exports.submitEngagementForm = functions.https.onRequest(async (req, res) => {
     await teacherRef.update(updateData);
 
     res.status(200).json({ success: true });
-  } catch (err) {
-    console.error('submitEngagementForm error:', err);
-    res.status(500).json({ error: 'שגיאה בשמירת השאלון' });
-  }
+    } catch (err) {
+      console.error('submitEngagementForm error:', err);
+      res.status(500).json({ error: 'שגיאה בשמירת השאלון' });
+    }
+  });
 });

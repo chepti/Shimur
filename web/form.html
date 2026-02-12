@@ -288,6 +288,15 @@
         slider.classList.toggle('slider-default', isDefault);
         valSpan.classList.toggle('val-default', isDefault);
       }
+      function blurActiveInput() {
+        const active = document.activeElement;
+        if (active && active !== slider && typeof active.blur === 'function') {
+          active.blur();
+        }
+      }
+      ['touchstart', 'mousedown'].forEach(ev => {
+        slider.addEventListener(ev, blurActiveInput);
+      });
       slider.addEventListener('input', () => {
         valSpan.textContent = slider.value;
         updateSliderStyle();
@@ -311,7 +320,9 @@
       if (!token) { showErr('חסר קישור תקין.'); return; }
 
       const btn = document.getElementById('submitBtn');
+      const originalText = btn.textContent;
       btn.disabled = true;
+      btn.textContent = 'שולח...';
 
       const formData = new FormData(e.target);
       const teacherSelect = formData.get('teacherSelect');
@@ -346,6 +357,7 @@
       } catch (err) {
         showErr(err.message || 'שגיאה בשליחת השאלון. נסי שוב.');
       } finally {
+        btn.textContent = originalText;
         btn.disabled = false;
       }
     });

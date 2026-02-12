@@ -141,31 +141,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                   ),
                   const SizedBox(height: 24),
                 ],
-                Text(
-                  'הצוות שלי',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...teachers.map(
-                  (teacher) => TeacherCard(
-                    teacher: teacher,
-                    actionsCount: 0,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TeacherDetailsScreen(
-                            teacherId: teacher.id,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
                 const SizedBox(height: 80),
               ],
             );

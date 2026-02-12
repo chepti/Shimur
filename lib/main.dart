@@ -186,6 +186,9 @@ class CustomBottomNavBar extends StatelessWidget {
                         (itemWidth / 2) -
                         circleRadius;
 
+                final double notchCenterX =
+                    (leftForCircle - horizontalPadding) + circleRadius;
+
                 return SizedBox(
                   height: barHeight + circleRadius + 8,
                   child: Stack(
@@ -195,43 +198,42 @@ class CustomBottomNavBar extends StatelessWidget {
                         left: horizontalPadding,
                         right: horizontalPadding,
                         bottom: 0,
-                        child: Container(
-                          height: barHeight,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                        child: PhysicalShape(
+                          color: Colors.white,
+                          elevation: 6,
+                          clipper: _NavBarNotchedClipper(
+                            notchCenterX: notchCenterX,
+                            notchRadius: circleRadius + 4,
+                            cornerRadius: 32,
+                            notchDepth: circleRadius + 2,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: List.generate(itemCount, (index) {
-                              final item = _items[index];
-                              final bool isActive = index == currentIndex;
-                              final Color accentColor =
-                                  _accentColors[index % _accentColors.length];
+                          child: SizedBox(
+                            height: barHeight,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: List.generate(itemCount, (index) {
+                                final item = _items[index];
+                                final bool isActive = index == currentIndex;
+                                final Color accentColor = _accentColors[
+                                    index % _accentColors.length];
 
-                              return Expanded(
-                                child: _NavItem(
-                                  data: item,
-                                  isActive: isActive,
-                                  accentColor: accentColor,
-                                  onTap: () => onItemSelected(index),
-                                ),
-                              );
-                            }),
+                                return Expanded(
+                                  child: _NavItem(
+                                    data: item,
+                                    isActive: isActive,
+                                    accentColor: accentColor,
+                                    onTap: () => onItemSelected(index),
+                                  ),
+                                );
+                              }),
+                            ),
                           ),
                         ),
                       ),
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeOutQuad,
-                        top: -circleRadius + 6,
+                        top: -circleRadius * 0.6,
                         left: leftForCircle,
                         child: Container(
                           width: circleRadius * 2,
@@ -273,6 +275,79 @@ class _NavItemData {
 
   final IconData icon;
   final String label;
+}
+
+class _NavBarNotchedClipper extends CustomClipper<Path> {
+  _NavBarNotchedClipper({
+    required this.notchCenterX,
+    required this.notchRadius,
+    required this.cornerRadius,
+    required this.notchDepth,
+  });
+
+  final double notchCenterX;
+  final double notchRadius;
+  final double cornerRadius;
+  final double notchDepth;
+
+  @override
+  Path getClip(Size size) {
+    final double effectiveCornerRadius =
+        cornerRadius.clamp(0, size.height / 2); // הגנה מפני ערכים קיצוניים
+
+    final double startX = (notchCenterX - notchRadius)
+        .clamp(effectiveCornerRadius, size.width - effectiveCornerRadius);
+    final double endX = (notchCenterX + notchRadius)
+        .clamp(effectiveCornerRadius, size.width - effectiveCornerRadius);
+
+    final Path path = Path();
+
+    // מתחילים בפינה השמאלית התחתונה
+    path.moveTo(0, size.height);
+    path.lineTo(0, effectiveCornerRadius);
+    path.quadraticBezierTo(
+      0,
+      0,
+      effectiveCornerRadius,
+      0,
+    );
+
+    // הקצה העליון עד תחילת המגרעת
+    path.lineTo(startX, 0);
+
+    // המגרעת הקעורה
+    final double controlPointX = notchCenterX;
+    final double controlPointY = notchDepth;
+    path.quadraticBezierTo(
+      controlPointX,
+      controlPointY,
+      endX,
+      0,
+    );
+
+    // ממשיכים לקצה הימני העליון
+    path.lineTo(size.width - effectiveCornerRadius, 0);
+    path.quadraticBezierTo(
+      size.width,
+      0,
+      size.width,
+      effectiveCornerRadius,
+    );
+
+    // קצה תחתון
+    path.lineTo(size.width, size.height);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _NavBarNotchedClipper oldClipper) {
+    return oldClipper.notchCenterX != notchCenterX ||
+        oldClipper.notchRadius != notchRadius ||
+        oldClipper.cornerRadius != cornerRadius ||
+        oldClipper.notchDepth != notchDepth;
+  }
 }
 
 class _NavItem extends StatelessWidget {

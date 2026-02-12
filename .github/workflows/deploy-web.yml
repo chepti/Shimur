@@ -1,10 +1,8 @@
 # פריסת גרסת Web ל-Firebase Hosting (https://shimur.web.app)
-# רץ אוטומטית בכל דחיפה ל-main – בלי צורך ב-Flutter מקומי
+# רץ ידנית מ-GitHub Actions – מתאים כאשר לא מריצים את הסקריפט המקומי (`deploy_web.ps1`)
 name: Deploy Web to Firebase Hosting
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch: # אפשר להריץ ידנית מ-Actions
 
 jobs:

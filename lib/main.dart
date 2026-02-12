@@ -168,8 +168,8 @@ class CustomBottomNavBar extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 const double horizontalPadding = 16;
-                const double barHeight = 64;
-                const double circleRadius = 16;
+                const double barHeight = 72;
+                const double circleRadius = 13;
 
                 final double barWidth =
                     constraints.maxWidth - (horizontalPadding * 2);
@@ -203,9 +203,9 @@ class CustomBottomNavBar extends StatelessWidget {
                           elevation: 6,
                           clipper: _NavBarNotchedClipper(
                             notchCenterX: notchCenterX,
-                            notchRadius: circleRadius + 4,
+                            notchRadius: circleRadius + 6,
                             cornerRadius: 32,
-                            notchDepth: circleRadius + 2,
+                            notchDepth: circleRadius * 2.1,
                           ),
                           child: SizedBox(
                             height: barHeight,
@@ -233,7 +233,7 @@ class CustomBottomNavBar extends StatelessWidget {
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 250),
                         curve: Curves.easeOutQuad,
-                        top: -circleRadius * 0.6,
+                        top: -circleRadius * 0.2,
                         left: leftForCircle,
                         child: Container(
                           width: circleRadius * 2,
@@ -292,50 +292,67 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    final double effectiveCornerRadius =
-        cornerRadius.clamp(0, size.height / 2); // הגנה מפני ערכים קיצוניים
+    final double r =
+        cornerRadius.clamp(0, size.height / 2); // רדיוס פינות אחיד
 
-    final double startX = (notchCenterX - notchRadius)
-        .clamp(effectiveCornerRadius, size.width - effectiveCornerRadius);
-    final double endX = (notchCenterX + notchRadius)
-        .clamp(effectiveCornerRadius, size.width - effectiveCornerRadius);
+    final double minX = r;
+    final double maxX = size.width - r;
+
+    final double startX =
+        (notchCenterX - notchRadius).clamp(minX, maxX); // תחילת המגרעת
+    final double endX =
+        (notchCenterX + notchRadius).clamp(minX, maxX); // סוף המגרעת
 
     final Path path = Path();
 
-    // מתחילים בפינה השמאלית התחתונה
-    path.moveTo(0, size.height);
-    path.lineTo(0, effectiveCornerRadius);
-    path.quadraticBezierTo(
-      0,
-      0,
-      effectiveCornerRadius,
-      0,
-    );
+    // מתחילים קצת מימין לפינה השמאלית העליונה
+    path.moveTo(r, 0);
 
-    // הקצה העליון עד תחילת המגרעת
+    // קשת הפינה השמאלית העליונה
+    path.quadraticBezierTo(0, 0, 0, r);
+
+    // צד שמאל עד למעלה
+    path.lineTo(0, r);
+
+    // קו עליון עד תחילת המגרעת
     path.lineTo(startX, 0);
 
-    // המגרעת הקעורה
-    final double controlPointX = notchCenterX;
-    final double controlPointY = notchDepth;
+    // מגרעת חלקה בשני מקטעי Bezier, כך שהחיבורים למעלה נשארים אופקיים
+    final double midX = notchCenterX;
+    final double depth = notchDepth.clamp(0, size.height * 0.9);
+
+    // חלק שמאלי של המגרעת
     path.quadraticBezierTo(
-      controlPointX,
-      controlPointY,
+      (startX + midX) / 2,
+      0,
+      midX,
+      depth,
+    );
+
+    // חלק ימני של המגרעת
+    path.quadraticBezierTo(
+      (endX + midX) / 2,
+      0,
       endX,
       0,
     );
 
-    // ממשיכים לקצה הימני העליון
-    path.lineTo(size.width - effectiveCornerRadius, 0);
-    path.quadraticBezierTo(
-      size.width,
-      0,
-      size.width,
-      effectiveCornerRadius,
-    );
+    // המשך הקו העליון עד הפינה הימנית העליונה
+    path.lineTo(size.width - r, 0);
+    path.quadraticBezierTo(size.width, 0, size.width, r);
 
-    // קצה תחתון
-    path.lineTo(size.width, size.height);
+    // צד ימין למטה
+    path.lineTo(size.width, size.height - r);
+    path.quadraticBezierTo(size.width, size.height, size.width - r, size.height);
+
+    // קו תחתון עד הפינה השמאלית התחתונה
+    path.lineTo(r, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height - r);
+
+    // חוזרים כלפי מעלה לנקודת ההתחלה
+    path.lineTo(0, r);
+    path.quadraticBezierTo(0, 0, r, 0);
+
     path.close();
 
     return path;

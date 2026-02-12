@@ -7,7 +7,6 @@ import 'screens/tasks_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/add_action_screen.dart';
-import 'screens/add_teacher_screen.dart';
 import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 
@@ -24,7 +23,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +60,7 @@ class MyApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +84,7 @@ class AuthWrapper extends StatelessWidget {
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
+  const MainNavigationScreen({super.key});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -137,7 +136,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
           ],
         ),
-        floatingActionButton: _currentIndex != 3 // לא להציג בהגדרות
+        floatingActionButton: _currentIndex == 1 // להציג רק במסך המשימות
             ? FloatingActionButton(
                 onPressed: () => _handleFabPress(context),
                 backgroundColor: const Color(0xFF11a0db),
@@ -149,17 +148,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _handleFabPress(BuildContext context) async {
-    if (_currentIndex == 0) {
-      // אם אנחנו במסך המורים - פתיחת הוספת מורה
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const AddTeacherScreen()),
-      );
-    } else if (_currentIndex == 1) {
-      // אם אנחנו במסך המשימות - פתיחת בחירת מורה להוספת פעולה
+    if (_currentIndex == 1) {
+      // במסך המשימות - פתיחת בחירת מורה להוספת פעולה
       _showTeacherSelection(context);
     }
-    // בדשבורד והגדרות אין כפתור +
   }
 
   void _showTeacherSelection(BuildContext context) async {

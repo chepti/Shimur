@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -20,6 +20,7 @@ dependencies:
   intl: ^0.20.2
   kosher_dart: ^2.0.18
   material_hebrew_date_picker: ^1.2.2
+  fl_chart: ^1.1.1
 
 dev_dependencies:
   flutter_test:

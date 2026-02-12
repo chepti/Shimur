@@ -181,6 +181,79 @@ class FirestoreService {
     });
   }
 
+  /// מחזיר סטטיסטיקות של התייחסויות בימים האחרונים, מחולקות לפי סוג.
+  ///
+  /// [days] – כמה ימים אחורה לספור (ברירת מחדל: 14).
+  /// התוצאה ממוינת מכרונולוגית (מהיום הישן לחדש).
+  Future<List<DailyInteractions>> getRecentInteractionsStats({int days = 14}) async {
+    if (_currentUserId == null) return const [];
+    if (days <= 0) return const [];
+
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final startOfRange = startOfToday.subtract(Duration(days: days - 1));
+    final startIso = startOfRange.toIso8601String();
+    final endIso = startOfToday.add(const Duration(days: 1)).toIso8601String();
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    // מפתח: yyyy-MM-dd  ->  (מפתח פנימי: קטגוריית סוג -> כמות)
+    final Map<String, Map<String, int>> buckets = {};
+
+    for (var teacherDoc in teachersSnapshot.docs) {
+      final actionsSnapshot = await teacherDoc.reference
+          .collection('actions')
+          .where('completed', isEqualTo: true)
+          .where('date', isGreaterThanOrEqualTo: startIso)
+          .where('date', isLessThan: endIso)
+          .get();
+
+      for (var actionDoc in actionsSnapshot.docs) {
+        final action = Action.fromMap(actionDoc.id, actionDoc.data());
+        final date = action.date;
+        if (date == null) continue;
+
+        final day = DateTime(date.year, date.month, date.day);
+        if (day.isBefore(startOfRange) || day.isAfter(startOfToday)) continue;
+
+        final dayKey =
+            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final typeKey = _categorizeInteractionType(action.type);
+
+        final dayBucket = buckets.putIfAbsent(dayKey, () => <String, int>{});
+        dayBucket[typeKey] = (dayBucket[typeKey] ?? 0) + 1;
+      }
+    }
+
+    final result = <DailyInteractions>[];
+    buckets.forEach((dayKey, typeCounts) {
+      final day = DateTime.parse(dayKey);
+      result.add(DailyInteractions(day: day, typeCounts: typeCounts));
+    });
+
+    result.sort((a, b) => a.day.compareTo(b.day));
+    return result;
+  }
+
+  /// מיפוי טקסט חופשי של סוג פעולה לקטגוריה ויזואלית קבועה.
+  String _categorizeInteractionType(String rawType) {
+    final t = rawType.toLowerCase();
+    if (t.contains('מילה') || t.contains('טובה')) {
+      return 'good_word';
+    }
+    if (t.contains('דיבור') || t.contains('שיחה קצר') || t.contains('קצר')) {
+      return 'short_talk';
+    }
+    if (t.contains('נפגש') || t.contains('פגישה') || t.contains('meeting')) {
+      return 'meeting';
+    }
+    return 'other';
+  }
+
   /// ספירת כל הפעולות שהושלמו היום (למדד היומי במסך הבית).
   /// כרגע נספרות כל הפעולות שסומנו כ-completed בתאריך של היום,
   /// ללא סינון לפי סוג – כדי לתת תחושת התקדמות כללית.
@@ -248,40 +321,35 @@ class FirestoreService {
     return ids;
   }
 
-  Future<List<Map<String, dynamic>>> getAllUpcomingActions({bool thisWeekOnly = false}) async {
+  Future<List<Map<String, dynamic>>> getAllUpcomingActions({
+    bool thisWeekOnly = false,
+  }) async {
     if (_currentUserId == null) return [];
-    
+
     final teachersSnapshot = await _firestore
         .collection('schools')
         .doc(_currentUserId)
         .collection('teachers')
         .get();
-    
-    List<Map<String, dynamic>> allActions = [];
+
     final now = DateTime.now();
     final weekFromNow = now.add(const Duration(days: 7));
-    
+
+    // אוספים את כל הפיוצ׳רים לקריאה מקבילית – במקום לולאת await סדרתית על כל מורה
+    final futures = <Future<List<Map<String, dynamic>>>>[];
+
     for (var teacherDoc in teachersSnapshot.docs) {
-      final teacher = Teacher.fromMap(teacherDoc.id, teacherDoc.data());
-      final actionsSnapshot = await teacherDoc.reference
-          .collection('actions')
-          .where('completed', isEqualTo: false)
-          .orderBy('date')
-          .get();
-      
-      for (var actionDoc in actionsSnapshot.docs) {
-        final action = Action.fromMap(actionDoc.id, actionDoc.data());
-        final d = action.date;
-        if (!thisWeekOnly || (d != null && d.isAfter(now) && d.isBefore(weekFromNow))) {
-          allActions.add({
-            'action': action,
-            'teacherId': teacherDoc.id,
-            'teacherName': teacher.name,
-          });
-        }
-      }
+      futures.add(_loadTeacherUpcomingActions(
+        teacherDoc: teacherDoc,
+        thisWeekOnly: thisWeekOnly,
+        now: now,
+        weekFromNow: weekFromNow,
+      ));
     }
-    
+
+    final results = await Future.wait(futures);
+    final allActions = results.expand((x) => x).toList();
+
     allActions.sort((a, b) {
       final da = (a['action'] as Action).date;
       final db = (b['action'] as Action).date;
@@ -291,6 +359,38 @@ class FirestoreService {
       return da.compareTo(db);
     });
     return allActions;
+  }
+
+  /// קריאת פעולות עתידיות למורה יחיד – לשימוש פנימי, מאפשר ריצה מקבילית.
+  Future<List<Map<String, dynamic>>> _loadTeacherUpcomingActions({
+    required QueryDocumentSnapshot<Map<String, dynamic>> teacherDoc,
+    required bool thisWeekOnly,
+    required DateTime now,
+    required DateTime weekFromNow,
+  }) async {
+    final teacher = Teacher.fromMap(teacherDoc.id, teacherDoc.data());
+
+    final actionsSnapshot = await teacherDoc.reference
+        .collection('actions')
+        .where('completed', isEqualTo: false)
+        .orderBy('date')
+        .get();
+
+    final List<Map<String, dynamic>> teacherActions = [];
+
+    for (var actionDoc in actionsSnapshot.docs) {
+      final action = Action.fromMap(actionDoc.id, actionDoc.data());
+      final d = action.date;
+      if (!thisWeekOnly || (d != null && d.isAfter(now) && d.isBefore(weekFromNow))) {
+        teacherActions.add({
+          'action': action,
+          'teacherId': teacherDoc.id,
+          'teacherName': teacher.name,
+        });
+      }
+    }
+
+    return teacherActions;
   }
 
   Future<void> addAction(String teacherId, Action action) async {
@@ -504,5 +604,19 @@ class FirestoreService {
       'createdAt': DateTime.now().toIso8601String(),
     });
   }
+}
+
+/// מודל עזר לסטטיסטיקות התייחסויות יומיות לדשבורד.
+class DailyInteractions {
+  final DateTime day;
+  final Map<String, int> typeCounts;
+
+  const DailyInteractions({
+    required this.day,
+    required this.typeCounts,
+  });
+
+  int get totalCount =>
+      typeCounts.values.fold(0, (previous, element) => previous + element);
 }
 

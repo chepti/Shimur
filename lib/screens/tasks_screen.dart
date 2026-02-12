@@ -4,7 +4,7 @@ import '../services/firestore_service.dart';
 import '../widgets/hebrew_gregorian_date.dart';
 
 class TasksScreen extends StatefulWidget {
-  const TasksScreen({Key? key}) : super(key: key);
+  const TasksScreen({super.key});
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
@@ -15,6 +15,7 @@ class _TasksScreenState extends State<TasksScreen> {
   bool _thisWeekOnly = false;
   List<Map<String, dynamic>> _allActions = [];
   bool _isLoading = true;
+  int _visibleCount = 6;
 
   @override
   void initState() {
@@ -60,6 +61,29 @@ class _TasksScreenState extends State<TasksScreen> {
                   ? 'הפעולה סומנה כלא בוצעה'
                   : 'הפעולה סומנה כבוצעה!',
             ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _postponeActionByWeek(String teacherId, Action action) async {
+    try {
+      final baseDate = action.date ?? DateTime.now();
+      final updatedAction = action.copyWith(date: baseDate.add(const Duration(days: 7)));
+      await _firestoreService.updateAction(teacherId, updatedAction);
+      await _loadActions();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('המשימה נדחתה בשבוע.'),
           ),
         );
       }
@@ -120,92 +144,272 @@ class _TasksScreenState extends State<TasksScreen> {
                       ],
                     ),
                   )
-                : RefreshIndicator(
-                    onRefresh: _loadActions,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _allActions.length,
-                      itemBuilder: (context, index) {
-                        final item = _allActions[index];
-                        final action = item['action'] as Action;
-                        final teacherId = item['teacherId'] as String;
-                        final teacherName = item['teacherName'] as String;
-                        
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                : Column(
+                    children: [
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _loadActions,
+                          child: _buildReorderableTasksList(),
+                        ),
+                      ),
+                      if (_allActions.length > _visibleCount)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: action.completed,
-                              onChanged: (value) {
-                                _toggleActionCompleted(teacherId, action);
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _visibleCount =
+                                      (_visibleCount + 5).clamp(0, _allActions.length);
+                                });
                               },
-                              activeColor: const Color(0xFF40ae49),
-                              shape: const CircleBorder(),
+                              child: const Text('הצג עוד'),
                             ),
-                            title: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  action.type,
-                                  style: TextStyle(
-                                    decoration: action.completed
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                    color: action.completed
-                                        ? Colors.grey
-                                        : Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  teacherName,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: const Color(0xFF11a0db),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                action.date == null
-                                    ? const Text('ללא תאריך')
-                                    : HebrewGregorianDateText(
-                                        date: action.date!,
-                                      ),
-                                if (action.notes != null &&
-                                    action.notes!.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      action.notes!,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            trailing: action.completed
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Color(0xFF40ae49),
-                                  )
-                                : null,
                           ),
-                        );
-                      },
+                        ),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildReorderableTasksList() {
+    final itemCount = _allActions.isEmpty
+        ? 0
+        : (_visibleCount.clamp(0, _allActions.length));
+
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: itemCount,
+      buildDefaultDragHandles: false,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) {
+            newIndex -= 1;
+          }
+          if (oldIndex < 0 ||
+              oldIndex >= itemCount ||
+              newIndex < 0 ||
+              newIndex >= itemCount) {
+            return;
+          }
+          final item = _allActions.removeAt(oldIndex);
+          _allActions.insert(newIndex, item);
+        });
+      },
+      itemBuilder: (context, index) {
+        final item = _allActions[index];
+        final action = item['action'] as Action;
+        final teacherId = item['teacherId'] as String;
+        final teacherName = item['teacherName'] as String;
+
+        return Dismissible(
+          key: ValueKey('${teacherId}_${action.id}'),
+          direction: DismissDirection.horizontal,
+          background: Container(
+            alignment: Alignment.centerRight,
+            color: Colors.orange,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  'דחיה בשבוע',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Icon(Icons.schedule, color: Colors.white, size: 28),
+              ],
+            ),
+          ),
+          secondaryBackground: Container(
+            alignment: Alignment.centerLeft,
+            color: const Color(0xFF4CAF50),
+            padding: const EdgeInsets.only(left: 20),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Icon(Icons.check, color: Colors.white, size: 28),
+                SizedBox(width: 8),
+                Text(
+                  'בוצע',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              await _postponeActionByWeek(teacherId, action);
+            } else {
+              await _toggleActionCompleted(teacherId, action);
+            }
+            return false;
+          },
+          child: Card(
+            key: ValueKey('card_${teacherId}_${action.id}'),
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              leading: Checkbox(
+                value: action.completed,
+                onChanged: (_) {
+                  _toggleActionCompleted(teacherId, action);
+                },
+                activeColor: const Color(0xFF40ae49),
+                shape: const CircleBorder(),
+              ),
+              title: _buildTaskTitleRow(action, teacherName),
+              subtitle: _buildTaskSubtitleRow(action),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (action.completed)
+                    const Icon(
+                      Icons.check_circle,
+                      color: Color(0xFF40ae49),
+                    ),
+                  const SizedBox(width: 4),
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(
+                      Icons.drag_handle,
+                      color: Colors.grey,
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// כותרת קומפקטית: תאריך למעלה, סוג + ״אחר״ עם פירוט באותה שורה.
+  Widget _buildTaskTitleRow(Action action, String teacherName) {
+    final isOther = action.type.trim() == 'אחר';
+    final hasNotes = action.notes != null && action.notes!.trim().isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // שורה עליונה – תאריך + שם מורה באותה שורה (פחות שורות).
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (action.date != null)
+              Expanded(
+                child: DefaultTextStyle(
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                  child: HebrewGregorianDateText(
+                    date: action.date!,
+                  ),
+                ),
+              )
+            else
+              const Expanded(
+                child: Text(
+                  'ללא תאריך',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            Text(
+              teacherName,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF11a0db),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // שורה שנייה – סוג + פירוט ״אחר״ באותה שורה.
+        RichText(
+          text: TextSpan(
+            children: [
+              TextSpan(
+                text: action.type,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: action.completed ? Colors.grey : Colors.black,
+                  decoration: action.completed
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
+              ),
+              if (isOther && hasNotes) ...[
+                const TextSpan(
+                  text: ' – ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: action.notes!.trim(),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w400,
+                    decoration: action.completed
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// שורת משנה – הערות נוספות רק כשזה לא ״אחר״ (כדי לא לפצל לשתי שורות).
+  Widget _buildTaskSubtitleRow(Action action) {
+    final isOther = action.type.trim() == 'אחר';
+    final hasNotes = action.notes != null && action.notes!.trim().isNotEmpty;
+
+    if (!hasNotes || isOther) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        action.notes!.trim(),
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey[600],
+        ),
       ),
     );
   }

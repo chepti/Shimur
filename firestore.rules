@@ -26,8 +26,8 @@ service cloud.firestore {
 
       // כללי אבטחה למורים
       match /teachers/{teacherId} {
-        // מנהל מחובר – כבר מכוסה ע״י allow ברמת בית הספר
-
+        // מנהל מחובר – גישה מלאה למורה
+        allow read, update, delete: if isManager();
         // יצירת מורה חדש מטופס חיצוני (ללא התחברות)
         allow create: if
           request.auth == null &&

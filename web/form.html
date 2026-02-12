@@ -103,17 +103,36 @@
       font-size: 0.9rem;
     }
     .motivation-item {
+      position: relative;
+      display: block;
       margin-bottom: 16px;
-      padding: 14px 16px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
       cursor: pointer;
       transition: all 0.2s;
+      background: #fcfcfc;
+      line-height: 1.5;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .motivation-item:hover { border-color: #11a0db; }
+    .motivation-item::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 4px;
+      border-radius: 8px;
+      background: #b2d234; /* ליים עדין */
+    }
+    .motivation-item:hover {
+      border-color: #ed1c24;
+      box-shadow: 0 0 0 1px rgba(237,29,36,0.12);
+    }
     .motivation-item.selected {
-      background: #e3f2fd;
-      border-color: #11a0db;
+      background: #fff7e0;
+      border-color: #faa41a; /* כתום עדין */
+      box-shadow: 0 0 0 1px rgba(250,164,26,0.2);
     }
     .motivation-item input { display: none; }
     .roles-input {

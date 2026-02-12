@@ -268,7 +268,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                 sheetTitle: 'למי התייחסתי?',
                 sheetSubtitle:
                     'בחר מורה אחד או כמה, והמערכת תשמור עבורך התייחסות קטנה.',
-                snackbarPrefix: 'נרשמה התייחסות למורה',
               ),
               child: Container(
                 width: 220,
@@ -329,7 +328,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'למי אמרתי מילה טובה?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור מילה טובה קטנה.',
-                    snackbarPrefix: 'נשמרה מילה טובה למורה',
                   ),
                 ),
                 _buildMiniInteractionCircle(
@@ -343,7 +341,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'עם מי היה לי דיבור קצר?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור דיבור קצר.',
-                    snackbarPrefix: 'נשמר דיבור קצר עם',
                   ),
                 ),
                 _buildMiniInteractionCircle(
@@ -357,7 +354,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'עם מי נפגשתי?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור פגישה שהתקיימה.',
-                    snackbarPrefix: 'נשמרה פגישה עם',
                   ),
                 ),
               ],
@@ -471,7 +467,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required String interactionType,
     required String sheetTitle,
     required String sheetSubtitle,
-    required String snackbarPrefix,
   }) {
     final firestoreService = _firestoreService;
     final nowForSort = DateTime.now();
@@ -489,6 +484,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
 
     String searchQuery = '';
     bool showSearchField = false;
+    final selectedTeacherIds = <String>{};
 
     showModalBottomSheet(
       context: context,
@@ -621,6 +617,8 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                                   }
                                   infoParts.add(daysText);
                                   final infoText = infoParts.join(' · ');
+                                  final isSelected =
+                                      selectedTeacherIds.contains(teacher.id);
 
                                   return ListTile(
                                     dense: true,
@@ -649,7 +647,19 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                                         color: statusColor,
                                       ),
                                     ),
+                                    tileColor: isSelected
+                                        ? Colors.blue.withOpacity(0.06)
+                                        : null,
                                     onTap: () async {
+                                      if (selectedTeacherIds
+                                          .contains(teacher.id)) {
+                                        return;
+                                      }
+
+                                      setModalState(() {
+                                        selectedTeacherIds.add(teacher.id);
+                                      });
+
                                       final now = DateTime.now();
                                       final action = teacher_action.Action(
                                         id: '',
@@ -665,23 +675,13 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                                           teacher.id,
                                           action,
                                         );
-                                        if (Navigator.of(sheetContext).canPop()) {
-                                          Navigator.of(sheetContext).pop();
-                                        }
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              '$snackbarPrefix ${teacher.name}',
-                                            ),
-                                          ),
-                                        );
                                       } catch (e) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                                'שגיאה בשמירת ההתייחסות: $e'),
+                                              'שגיאה בשמירת ההתייחסות: $e',
+                                            ),
                                           ),
                                         );
                                       }

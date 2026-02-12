@@ -37,6 +37,8 @@ class Teacher {
   final List<String> roles;
   // תאריך האינטראקציה האחרונה (מילה טובה/פעולה)
   final DateTime? lastInteractionDate;
+  /// טוקן למילוי טופס חיצוני – הקישור שמנהל שולח למורה
+  final String? formToken;
 
   Teacher({
     required this.id,
@@ -68,6 +70,7 @@ class Teacher {
     this.moodWeekNote,
     this.roles = const [],
     this.lastInteractionDate,
+    this.formToken,
   });
 
   Map<String, dynamic> toMap() {
@@ -101,6 +104,7 @@ class Teacher {
       'roles': roles,
       'lastInteractionDate':
           lastInteractionDate?.toIso8601String(),
+      'formToken': formToken,
     };
   }
 
@@ -159,6 +163,7 @@ class Teacher {
       lastInteractionDate: map['lastInteractionDate'] != null
           ? DateTime.parse(map['lastInteractionDate'])
           : null,
+      formToken: map['formToken'] as String?,
     );
   }
 
@@ -190,6 +195,7 @@ class Teacher {
     String? moodWeekNote,
     List<String>? roles,
     DateTime? lastInteractionDate,
+    String? formToken,
   }) {
     return Teacher(
       id: id,
@@ -224,6 +230,7 @@ class Teacher {
       moodWeekNote: moodWeekNote ?? this.moodWeekNote,
       roles: roles ?? this.roles,
       lastInteractionDate: lastInteractionDate ?? this.lastInteractionDate,
+      formToken: formToken ?? this.formToken,
     );
   }
 }

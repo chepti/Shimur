@@ -26,6 +26,9 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
+      - name: Copy form.html
+        run: cp web/form.html build/web/form.html
+
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

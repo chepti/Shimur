@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/teacher.dart';
 import '../models/action.dart';
@@ -277,6 +279,27 @@ class FirestoreService {
       return Teacher.fromMap(doc.id, doc.data()!);
     }
     return null;
+  }
+
+  /// יוצר או מחזיר טוקן קיים למילוי טופס חיצוני.
+  /// מחזיר את הקישור המלא לשליחה למורה.
+  Future<String> getOrCreateFormLink(String teacherId) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    final teacher = await getTeacher(teacherId);
+    if (teacher == null) throw Exception('מורה לא נמצא');
+
+    String token = teacher.formToken ?? '';
+    if (token.isEmpty) {
+      final random = Random.secure();
+      final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+      token = base64Url.encode(bytes).replaceAll('=', '');
+      final updated = teacher.copyWith(formToken: token);
+      await updateTeacher(updated);
+    }
+
+    const baseUrl = 'https://shimur.web.app';
+    return '$baseUrl/form.html?t=$token';
   }
 
   // ========== הגדרות מנהל ==========

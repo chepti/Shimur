@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Action;
+import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/action.dart';
 import '../services/firestore_service.dart';
@@ -7,15 +8,14 @@ import '../widgets/hebrew_gregorian_date.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
 import 'engagement_survey_screen.dart';
-import 'recommended_actions_screen.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
 
   const TeacherDetailsScreen({
-    Key? key,
+    super.key,
     required this.teacherId,
-  }) : super(key: key);
+  });
 
   @override
   State<TeacherDetailsScreen> createState() => _TeacherDetailsScreenState();
@@ -72,6 +72,26 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
           _nextActionDateController.clear();
           _nextActionTypeController.clear();
         }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareFormLink(BuildContext context) async {
+    try {
+      final link = await _firestoreService.getOrCreateFormLink(widget.teacherId);
+      await Clipboard.setData(ClipboardData(text: link));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('הקישור הועתק ללוח. שלחי למורה למילוי השאלון'),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -299,6 +319,11 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                                 icon: const Icon(Icons.edit_note, size: 20),
                                 label: const Text('מילוי / עריכת שאלון'),
                               ),
+                              TextButton.icon(
+                                onPressed: () => _shareFormLink(context),
+                                icon: const Icon(Icons.link, size: 20),
+                                label: const Text('שתף קישור למורה'),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -447,11 +472,9 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  action.date == null
-                                      ? const Text('ללא תאריך')
-                                      : HebrewGregorianDateText(
-                                          date: action.date!,
-                                        ),
+                                  HebrewGregorianDateText(
+                                    date: action.date,
+                                  ),
                                   if (action.notes != null &&
                                       action.notes!.isNotEmpty)
                                     Text(action.notes!),
@@ -467,41 +490,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
-                  // בחר ממאגר פעולות מומלצות (למידה הדדית)
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final type = await Navigator.push<String>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RecommendedActionsScreen(
-                            pickerMode: true,
-                          ),
-                        ),
-                      );
-                      if (type != null && type.isNotEmpty && mounted) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AddActionScreen(
-                              teacherId: widget.teacherId,
-                              suggestedType: type,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.lightbulb_outline, size: 20),
-                    label: const Text('בחר ממאגר פעולות מומלצות'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF11a0db),
-                      side: const BorderSide(color: Color(0xFF11a0db)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(

@@ -12,6 +12,9 @@ Write-Host "`n===== 2. Build Flutter Web =====" -ForegroundColor Cyan
 flutter build web --release
 if ($LASTEXITCODE -ne 0) { Write-Host "Flutter build failed." -ForegroundColor Red; exit 1 }
 
+Write-Host "`n===== 2b. Copy form.html to build =====" -ForegroundColor Cyan
+Copy-Item "web\form.html" "build\web\form.html" -Force
+
 Write-Host "`n===== 3. Deploy to Firebase Hosting =====" -ForegroundColor Cyan
 firebase deploy --only hosting
 if ($LASTEXITCODE -ne 0) { Write-Host "Firebase deploy failed. Run: firebase login" -ForegroundColor Red; exit 1 }

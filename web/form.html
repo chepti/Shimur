@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>שאלון מעורבות – שימור</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Heebo', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+      direction: rtl;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    h1 {
+      color: #11a0db;
+      font-size: 1.5rem;
+      margin: 0 0 8px 0;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    .err {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .section {
+      margin-bottom: 28px;
+    }
+    .section-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #11a0db;
+      margin-bottom: 12px;
+    }
+    .q-item {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #fafafa;
+      border-radius: 10px;
+    }
+    .q-item label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+      height: 8px;
+      accent-color: #11a0db;
+    }
+    .slider-row .val {
+      min-width: 24px;
+      font-weight: 700;
+      color: #11a0db;
+    }
+    .q-item input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .motivation-item {
+      margin-bottom: 8px;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .motivation-item:hover { border-color: #11a0db; }
+    .motivation-item.selected {
+      background: #e3f2fd;
+      border-color: #11a0db;
+    }
+    .motivation-item input { display: none; }
+    .roles-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+    }
+    .note-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      margin-top: 16px;
+      min-height: 80px;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 14px 24px;
+      background: #11a0db;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+    }
+    button[type="submit"]:hover { background: #0d8fc4; }
+    button[type="submit"]:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>שאלון מעורבות ומוטיבציה</h1>
+    <p class="subtitle">מלא/י את השאלון – הנתונים יישלחו למנהל/ת בית הספר</p>
+
+    <div id="err" class="err"></div>
+    <div id="success" class="success">השאלון נשלח בהצלחה! תודה.</div>
+
+    <form id="form">
+      <input type="hidden" name="token" id="token">
+
+      <div class="section">
+        <div class="section-title">מדד מעורבות (גאלופ Q12)</div>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">בחר/י ציון 1–6 לכל היגד</p>
+        <div id="q12-container"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">סגנון מוטיבציה</div>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">סמן/י את המשפטים שמתאימים לך</p>
+        <div id="motivation-container"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">תפקידים</div>
+        <input type="text" name="roles" class="roles-input" placeholder="מחנכת, רכזת שכבה (מופרדים בפסיק)">
+      </div>
+
+      <div class="section">
+        <div class="section-title">הערה כללית (אופציונלי)</div>
+        <textarea name="engagementNote" class="note-input" placeholder="הערה או מחשבה נוספת..."></textarea>
+      </div>
+
+      <button type="submit" id="submitBtn">שלח שאלון</button>
+    </form>
+  </div>
+
+  <script>
+    const Q12_QUESTIONS = [
+      'אני יודע/ת מה מצפים ממני בעבודה',
+      'יש לי את החומרים והציוד שאני צריך/ה כדי לעשות את עבודתי כמו שצריך',
+      'בעבודה, יש לי הזדמנות לעשות את מה שאני הכי טוב/ה בו כל יום',
+      'בשבוע האחרון, קיבלתי הכרה או שבח על עבודה טובה',
+      'נראה שאכפת למנהל שלי, או מישהו בעבודה, ממני כאדם',
+      'יש מישהו בעבודה שמעודד את ההתפתחות שלי',
+      'בעבודה, נראה שהדעות שלי נחשבות',
+      'המשימה או המטרה של בית הספר גורמת לי להרגיש שהעבודה שלי חשובה',
+      'חברי הצוות שלי מחויבים לעשות עבודה איכותית',
+      'יש לי חבר/ה טוב/ה בעבודה',
+      'בחצי השנה האחרונה, מישהו בעבודה דיבר איתי על ההתקדמות שלי',
+      'השנה האחרונה, היו לי הזדמנויות בעבודה ללמוד ולצמוח'
+    ];
+    const MOTIVATION = [
+      { text: 'אני נהנה לעבוד בצוות ולשתף פעולה עם עמיתים', key: 'gregariousness' },
+      { text: 'אני אוהב ללמוד דברים חדשים ולהתפתח מקצועית', key: 'inquisitiveness' },
+      { text: 'חשוב לי לקבל חופש להחליט איך אני מלמד', key: 'autonomy' },
+      { text: 'חשוב לי קשר אישי וחם עם המנהל', key: 'affiliation' },
+      { text: 'הכרה פומבית והערכה חשובות לי', key: 'status' },
+      { text: 'אני רוצה להוביל שינויים ולהשפיע על החלטות', key: 'power' },
+      { text: 'אני מרגיש טוב כשאני חלק מקהילה מקצועית', key: 'gregariousness' },
+      { text: 'השתלמויות וחידושים פדגוגיים מעוררים אותי', key: 'inquisitiveness' },
+      { text: 'אני מעדיף לעבוד באופן עצמאי ולהוביל תהליכים בעצמי', key: 'autonomy' },
+      { text: 'אני זקוק לעידוד אישי ותמיכה רגשית', key: 'affiliation' },
+      { text: 'אני נהנה כשההצלחות שלי מוזכרות ומפורסמות', key: 'status' },
+      { text: 'חשוב לי לקבל אחריות ותפקידי הובלה', key: 'power' }
+    ];
+
+    const params = new URLSearchParams(location.search);
+    const token = params.get('t') || '';
+
+    const errEl = document.getElementById('err');
+    const successEl = document.getElementById('success');
+
+    function showErr(msg) {
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      successEl.style.display = 'none';
+    }
+    function showSuccess() {
+      errEl.style.display = 'none';
+      successEl.style.display = 'block';
+    }
+
+    if (!token) {
+      showErr('חסר קישור תקין. נא לבקש מהמנהל/ת קישור חדש.');
+    } else {
+      document.getElementById('token').value = token;
+    }
+
+    const q12Container = document.getElementById('q12-container');
+    Q12_QUESTIONS.forEach((q, i) => {
+      const key = 'q' + (i + 1);
+      const div = document.createElement('div');
+      div.className = 'q-item';
+      div.innerHTML = `
+        <label>Q${i + 1}. ${q}</label>
+        <div class="slider-row">
+          <span>1</span>
+          <input type="range" name="${key}" min="1" max="6" value="3" required>
+          <span class="val">3</span>
+          <span>6</span>
+        </div>
+        <input type="text" name="${key}_note" placeholder="הערה (אופציונלי)">
+      `;
+      const slider = div.querySelector('input[type="range"]');
+      const valSpan = div.querySelector('.val');
+      slider.addEventListener('input', () => { valSpan.textContent = slider.value; });
+      q12Container.appendChild(div);
+    });
+
+    const motContainer = document.getElementById('motivation-container');
+    MOTIVATION.forEach(m => {
+      const label = document.createElement('label');
+      label.className = 'motivation-item';
+      label.innerHTML = `<input type="checkbox" name="motivation" value="${m.key}"> ${m.text}`;
+      const cb = label.querySelector('input');
+      cb.addEventListener('change', () => label.classList.toggle('selected', cb.checked));
+      motContainer.appendChild(label);
+    });
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!token) { showErr('חסר קישור תקין.'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+
+      const formData = new FormData(e.target);
+      const payload = {
+        token: formData.get('token'),
+        itemScores: {},
+        itemNotes: {},
+        motivationStyles: formData.getAll('motivation'),
+        roles: (formData.get('roles') || '').trim().split(',').map(s => s.trim()).filter(Boolean),
+        engagementNote: (formData.get('engagementNote') || '').trim() || null
+      };
+      for (let i = 1; i <= 12; i++) {
+        const key = 'q' + i;
+        payload.itemScores[key] = parseInt(formData.get(key), 10);
+        const note = formData.get(key + '_note');
+        if (note && note.trim()) payload.itemNotes[key] = note.trim();
+      }
+
+      try {
+        const res = await fetch('https://us-central1-shimur.cloudfunctions.net/submitEngagementForm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'שגיאה בשליחה');
+        showSuccess();
+        document.getElementById('form').style.display = 'none';
+      } catch (err) {
+        showErr(err.message || 'שגיאה בשליחת השאלון. נסי שוב.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -163,6 +163,29 @@ firebase deploy --only hosting
 
 ---
 
+## 📝 טופס חיצוני למורים (שאלון מעורבות)
+
+המנהל יכול לשתף קישור עם מורה – המורה ממלא את השאלון בדפדפן (בלי צורך באפליקציה) והנתונים מוזנים למידע באפליקציה.
+
+**פריסה חד־פעמית (פעם אחת):**
+
+1. **התקנת Cloud Functions:**
+```powershell
+cd functions
+npm install
+cd ..
+```
+
+2. **פריסת Functions והאינדקסים:**
+```powershell
+firebase deploy --only functions
+firebase deploy --only firestore:indexes
+```
+
+**זהו.** אחרי הפריסה, כפתור "שתף קישור למורה" במסך פרטי מורה יעבוד.
+
+---
+
 ## 🔒 אבטחה
 
 האפליקציה מוגנת:

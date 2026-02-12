@@ -472,9 +472,12 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  HebrewGregorianDateText(
-                                    date: action.date,
-                                  ),
+                                  if (action.date != null)
+                                    HebrewGregorianDateText(
+                                      date: action.date!,
+                                    )
+                                  else
+                                    const Text('ללא תאריך'),
                                   if (action.notes != null &&
                                       action.notes!.isNotEmpty)
                                     Text(action.notes!),

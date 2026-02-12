@@ -99,6 +99,67 @@ class FirestoreService {
         .delete();
   }
 
+  /// מאחד שני מורים: מעביר פעולות מהמורה המקור (from) למורה היעד (to),
+  /// וממזג שדות מידע כך שהמורה היעד שומר את שמו אבל מקבל מידע חסר מהמורה המקור.
+  Future<void> mergeTeachers({
+    required String fromTeacherId,
+    required String toTeacherId,
+  }) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+    if (fromTeacherId == toTeacherId) return;
+
+    final schoolRef = _firestore.collection('schools').doc(_currentUserId);
+    final fromRef = schoolRef.collection('teachers').doc(fromTeacherId);
+    final toRef = schoolRef.collection('teachers').doc(toTeacherId);
+
+    final fromSnap = await fromRef.get();
+    final toSnap = await toRef.get();
+    if (!fromSnap.exists || !toSnap.exists) {
+      throw Exception('אחד המורים לא נמצא למיזוג');
+    }
+
+    final fromTeacher = Teacher.fromMap(fromSnap.id, fromSnap.data()!);
+    final toTeacher = Teacher.fromMap(toSnap.id, toSnap.data()!);
+
+    // העברת פעולות
+    final fromActions = await fromRef.collection('actions').get();
+    for (final actionDoc in fromActions.docs) {
+      await toRef.collection('actions').add(actionDoc.data());
+      await actionDoc.reference.delete();
+    }
+
+    // מיזוג מידע: שומרים את המורה היעד כ"קאנוני",
+    // וממלאים רק שדות שחסרים/ריקים אצלו מתוך מורה המקור.
+    bool _isEmptyMap(Map m) => m.isEmpty;
+    bool _isEmptyList(List l) => l.isEmpty;
+
+    final merged = toTeacher.copyWith(
+      notes: toTeacher.notes ?? fromTeacher.notes,
+      motivationStyles: !_isEmptyList(toTeacher.motivationStyles)
+          ? toTeacher.motivationStyles
+          : fromTeacher.motivationStyles,
+      engagementSignals: !_isEmptyList(toTeacher.engagementSignals)
+          ? toTeacher.engagementSignals
+          : fromTeacher.engagementSignals,
+      engagementDomainScores: !_isEmptyMap(toTeacher.engagementDomainScores)
+          ? toTeacher.engagementDomainScores
+          : fromTeacher.engagementDomainScores,
+      engagementItemScores: !_isEmptyMap(toTeacher.engagementItemScores)
+          ? toTeacher.engagementItemScores
+          : fromTeacher.engagementItemScores,
+      engagementItemNotes: !_isEmptyMap(toTeacher.engagementItemNotes)
+          ? toTeacher.engagementItemNotes
+          : fromTeacher.engagementItemNotes,
+      engagementNote: toTeacher.engagementNote ?? fromTeacher.engagementNote,
+      roles: !_isEmptyList(toTeacher.roles) ? toTeacher.roles : fromTeacher.roles,
+      lastInteractionDate:
+          toTeacher.lastInteractionDate ?? fromTeacher.lastInteractionDate,
+    );
+
+    await toRef.update(merged.toMap());
+    await fromRef.delete();
+  }
+
   // ========== Actions ==========
   Stream<List<Action>> getActionsStream(String teacherId) {
     if (_currentUserId == null) {

@@ -81,6 +81,115 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     }
   }
 
+  Future<void> _showMergeTeacherSheet(BuildContext context, Teacher current) async {
+    try {
+      final allTeachers = await _firestoreService.getTeachersStream().first;
+      final others = allTeachers.where((t) => t.id != current.id).toList();
+      if (others.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('אין מורים נוספים לאיחוד.')),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'בחרי מורה לאיחוד איתו',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: others.length,
+                      itemBuilder: (context, index) {
+                        final other = others[index];
+                        return ListTile(
+                          title: Text(other.name),
+                          subtitle: Text(
+                            'וותק: ${other.seniorityYears} שנים | סטטוס: ${other.status}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          onTap: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dctx) => AlertDialog(
+                                title: const Text('אישור איחוד'),
+                                content: Text(
+                                  'לאחד את המורה \"${current.name}\" אל תוך \"${other.name}\"?\n'
+                                  'הפעולות והמידע של ${current.name} יעברו למורה ${other.name} והמורה הנוכחי יימחק.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dctx, false),
+                                    child: const Text('ביטול'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(dctx, true),
+                                    child: const Text('אשר איחוד'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              Navigator.pop(ctx); // סגירת ה-bottom sheet
+                              await _mergeTeachers(current.id, other.id);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('שגיאה בטעינת רשימת המורים: $e')),
+      );
+    }
+  }
+
+  Future<void> _mergeTeachers(String fromTeacherId, String toTeacherId) async {
+    try {
+      await _firestoreService.mergeTeachers(
+        fromTeacherId: fromTeacherId,
+        toTeacherId: toTeacherId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('המורים אוחדו בהצלחה.')),
+      );
+      Navigator.pop(context); // חזרה למסך הרשימה
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('שגיאה באיחוד מורים: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -137,6 +246,19 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                       });
                     }
                   },
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'merge') {
+                      await _showMergeTeacherSheet(context, teacher);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'merge',
+                      child: Text('איחוד עם מורה אחר'),
+                    ),
+                  ],
                 ),
               ],
             ),

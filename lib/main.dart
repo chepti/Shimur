@@ -127,7 +127,7 @@ class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onItemSelected;
 
-  static const Color _navBackground = Color(0xFFac2b31);
+  static const Color _navBackground = Color(0xFFed1c24);
 
   static const List<Color> _accentColors = [
     Color(0xFFed1c24),
@@ -176,8 +176,13 @@ class CustomBottomNavBar extends StatelessWidget {
                 final int itemCount = _items.length;
                 final double itemWidth = barWidth / itemCount;
 
+                final bool isRtl =
+                    Directionality.of(context) == TextDirection.rtl;
+                final int visualIndex =
+                    isRtl ? (itemCount - 1 - currentIndex) : currentIndex;
+
                 final double leftForCircle =
-                    horizontalPadding + (itemWidth * currentIndex) +
+                    horizontalPadding + (itemWidth * visualIndex) +
                         (itemWidth / 2) -
                         circleRadius;
 
@@ -225,8 +230,8 @@ class CustomBottomNavBar extends StatelessWidget {
                       ),
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutQuad,
-                        top: -circleRadius,
+                        curve: Curves.easeOutCubic,
+                        top: 8,
                         left: leftForCircle,
                         child: Container(
                           width: circleRadius * 2,
@@ -234,10 +239,6 @@ class CustomBottomNavBar extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: _navBackground,
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 4,
-                            ),
                           ),
                         ),
                       ),

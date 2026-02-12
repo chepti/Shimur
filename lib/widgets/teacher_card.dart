@@ -28,20 +28,25 @@ class TeacherCard extends StatelessWidget {
         : (daysSinceLast == 1 ? 'יום מהיחס האחרון' : 'ימים מהיחס האחרון');
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  StatusIndicator(
+                    status: teacher.moodStatus ?? teacher.status,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,6 +57,8 @@ class TeacherCard extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         if (teacher.roles.isNotEmpty)
@@ -61,33 +68,38 @@ class TeacherCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      StatusIndicator(
-                        status: teacher.moodStatus ?? teacher.status,
-                        size: 20,
-                      ),
-                      const SizedBox(height: 6),
                       Text(
                         daysNumberText,
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(width: 4),
                       Text(
                         daysLabelText,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
+                  if (actionsCount > 0)
+                    _buildInfoChip(
+                      '$actionsCount פעולות',
+                      Icons.check_circle,
+                    ),
                 ],
               ),
               if (_parseNextActionDate(teacher.nextActionDate) != null) ...[
@@ -96,13 +108,6 @@ class TeacherCard extends StatelessWidget {
                   _parseNextActionDate(teacher.nextActionDate!)!,
                   Icons.event,
                   color: const Color(0xFF11a0db),
-                ),
-              ],
-              if (actionsCount > 0) ...[
-                const SizedBox(height: 6),
-                _buildInfoChip(
-                  '$actionsCount פעולות',
-                  Icons.check_circle,
                 ),
               ],
             ],
@@ -130,6 +135,8 @@ class TeacherCard extends StatelessWidget {
 
   IconData _iconForRole(String role) {
     final r = role.toLowerCase();
+
+    // תפקידים כלליים
     if (r.contains('מחנ')) {
       return Icons.groups;
     }
@@ -142,6 +149,51 @@ class TeacherCard extends StatelessWidget {
     if (r.contains('יועץ') || r.contains('יועצ')) {
       return Icons.psychology_alt_outlined;
     }
+
+    // מקצועות לימוד – התאמת אייקון לפי תחום
+    if (r.contains('ספורט') ||
+        r.contains('חנ\"ג') ||
+        r.contains('חנג') ||
+        r.contains('חינוך גופ')) {
+      return Icons.sports_soccer;
+    }
+    if (r.contains('תנ\"ך') || r.contains('תנך') || r.contains('מקרא')) {
+      return Icons.menu_book;
+    }
+    if (r.contains('היסט') || r.contains('אזרחות')) {
+      return Icons.account_balance;
+    }
+    if (r.contains('מתמט') || r.contains('חשבון') || r.contains('אלגבר')) {
+      return Icons.calculate;
+    }
+    if (r.contains('אנגלית') ||
+        r.contains('שפה') ||
+        r.contains('עברית') ||
+        r.contains('לשון')) {
+      return Icons.language;
+    }
+    if (r.contains('מדע') ||
+        r.contains('פיזיקה') ||
+        r.contains('כימיה') ||
+        r.contains('ביולוג')) {
+      return Icons.science;
+    }
+    if (r.contains('מוזיקה') || r.contains('מוסיקה')) {
+      return Icons.music_note;
+    }
+    if (r.contains('אמנות') || r.contains('אומנות') || r.contains('אמנות')) {
+      return Icons.brush;
+    }
+    if (r.contains('תיאטרון') || r.contains('דרמה')) {
+      return Icons.theater_comedy;
+    }
+    if (r.contains('חינוך מיוחד') ||
+        r.contains('שילוב') ||
+        r.contains('משלבת') ||
+        r.contains('משלב')) {
+      return Icons.diversity_3;
+    }
+
     return Icons.person_outline;
   }
 

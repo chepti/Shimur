@@ -107,34 +107,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         body: _screens[_currentIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
+        bottomNavigationBar: CustomBottomNavBar(
           currentIndex: _currentIndex,
-          onTap: (index) {
+          onItemSelected: (index) {
             setState(() {
               _currentIndex = index;
             });
           },
-          selectedItemColor: const Color(0xFF11a0db),
-          unselectedItemColor: Colors.grey,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'הצוות שלי',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.task_alt),
-              label: 'משימות',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'דשבורד',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'הגדרות',
-            ),
-          ],
         ),
         floatingActionButton: _currentIndex == 1 // להציג רק במסך המשימות
             ? FloatingActionButton(
@@ -209,6 +188,199 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class CustomBottomNavBar extends StatelessWidget {
+  const CustomBottomNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onItemSelected,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onItemSelected;
+
+  static const Color _navBackground = Color(0xFFac2b31);
+
+  static const List<Color> _accentColors = [
+    Color(0xFFed1c24),
+    Color(0xFFfaa41a),
+    Color(0xFFb2d234),
+    Color(0xFF40ae49),
+  ];
+
+  static const List<_NavItemData> _items = [
+    _NavItemData(
+      icon: Icons.people,
+      label: 'הצוות שלי',
+    ),
+    _NavItemData(
+      icon: Icons.task_alt,
+      label: 'משימות',
+    ),
+    _NavItemData(
+      icon: Icons.dashboard,
+      label: 'דשבורד',
+    ),
+    _NavItemData(
+      icon: Icons.settings,
+      label: 'הגדרות',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Material(
+        color: _navBackground,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const double horizontalPadding = 16;
+                const double barHeight = 60;
+                const double circleRadius = 14;
+
+                final double barWidth =
+                    constraints.maxWidth - (horizontalPadding * 2);
+                final int itemCount = _items.length;
+                final double itemWidth = barWidth / itemCount;
+
+                final double leftForCircle =
+                    horizontalPadding + (itemWidth * currentIndex) +
+                        (itemWidth / 2) -
+                        circleRadius;
+
+                return SizedBox(
+                  height: barHeight + circleRadius + 8,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: horizontalPadding,
+                        right: horizontalPadding,
+                        bottom: 0,
+                        child: Container(
+                          height: barHeight,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(32),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.12),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(itemCount, (index) {
+                              final item = _items[index];
+                              final bool isActive = index == currentIndex;
+                              final Color accentColor =
+                                  _accentColors[index % _accentColors.length];
+
+                              return Expanded(
+                                child: _NavItem(
+                                  data: item,
+                                  isActive: isActive,
+                                  accentColor: accentColor,
+                                  onTap: () => onItemSelected(index),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutQuad,
+                        top: -circleRadius,
+                        left: leftForCircle,
+                        child: Container(
+                          width: circleRadius * 2,
+                          height: circleRadius * 2,
+                          decoration: BoxDecoration(
+                            color: _navBackground,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItemData {
+  const _NavItemData({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.data,
+    required this.isActive,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final _NavItemData data;
+  final bool isActive;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color iconColor = isActive ? accentColor : Colors.grey.shade700;
+    final Color textColor = isActive ? accentColor : Colors.grey.shade600;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(32),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              data.icon,
+              color: iconColor,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              data.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

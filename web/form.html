@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>שאלון מעורבות – שימור</title>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -161,13 +163,8 @@
       <input type="hidden" name="token" id="token">
 
       <div class="section" id="teacher-section">
-        <div class="section-title">בחר/י את שמך</div>
-        <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">אם אינך ברשימה – בחר/י "אחר" והזן/י את שמך</p>
-        <select name="teacherSelect" id="teacherSelect" class="roles-input" required>
-          <option value="">-- בחר/י מורה --</option>
-          <option value="__other__">אחר – הזן/י את שמך</option>
-        </select>
-        <input type="text" name="teacherName" id="teacherName" class="roles-input" placeholder="הזן/י את שמך" style="margin-top: 12px; display: none;">
+        <div class="section-title">שם המורה</div>
+        <input type="text" name="teacherName" id="teacherName" class="roles-input" placeholder="שם מלא" required>
       </div>
 
       <div class="section">
@@ -197,6 +194,18 @@
   </div>
 
   <script>
+    const firebaseConfig = {
+      apiKey: 'AIzaSyD8Ts4gXr_KJ7cJnZ54mVb3HWsixeyhaIA',
+      appId: '1:473831757405:web:996242dfb7903db7e29fb4',
+      messagingSenderId: '473831757405',
+      projectId: 'shimur',
+      authDomain: 'shimur.firebaseapp.com',
+      storageBucket: 'shimur.firebasestorage.app',
+      measurementId: 'G-KGC9NVP62N',
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const Q12_QUESTIONS = [
       'אני יודע/ת מה מצפים ממני בעבודה',
       'יש לי את החומרים והציוד שאני צריך/ה כדי לעשות את עבודתי כמו שצריך',
@@ -227,6 +236,7 @@
     ];
 
     const params = new URLSearchParams(location.search);
+    const schoolId = params.get('s') || '';
     const token = params.get('t') || '';
 
     const errEl = document.getElementById('err');
@@ -242,29 +252,11 @@
       successEl.style.display = 'block';
     }
 
-    if (!token) {
+    if (!schoolId || !token) {
       showErr('חסר קישור תקין. נא לבקש מהמנהל/ת קישור חדש.');
     } else {
       document.getElementById('token').value = token;
-      fetch('https://us-central1-shimur.cloudfunctions.net/getFormTeachers?t=' + encodeURIComponent(token))
-        .then(r => r.json())
-        .then(data => {
-          const sel = document.getElementById('teacherSelect');
-          const otherOpt = sel.querySelector('option[value="__other__"]');
-          (data.teachers || []).forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t.id;
-            opt.textContent = t.name;
-            sel.insertBefore(opt, otherOpt);
-          });
-        })
-        .catch(() => showErr('שגיאה בטעינת רשימת המורים'));
     }
-
-    document.getElementById('teacherSelect').addEventListener('change', function() {
-      document.getElementById('teacherName').style.display = this.value === '__other__' ? 'block' : 'none';
-      document.getElementById('teacherName').required = this.value === '__other__';
-    });
 
     const q12Container = document.getElementById('q12-container');
     Q12_QUESTIONS.forEach((q, i) => {
@@ -325,12 +317,16 @@
       btn.textContent = 'שולח...';
 
       const formData = new FormData(e.target);
-      const teacherSelect = formData.get('teacherSelect');
       const teacherName = (formData.get('teacherName') || '').trim();
+      if (!teacherName) {
+        showErr('נא להזין את שמך.');
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return;
+      }
       const payload = {
         token: formData.get('token'),
-        teacherId: teacherSelect && teacherSelect !== '__other__' ? teacherSelect : null,
-        teacherName: teacherSelect === '__other__' ? teacherName : null,
+        teacherName,
         itemScores: {},
         itemNotes: {},
         motivationStyles: formData.getAll('motivation'),
@@ -345,16 +341,73 @@
       }
 
       try {
-        const res = await fetch('https://us-central1-shimur.cloudfunctions.net/submitEngagementForm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'שגיאה בשליחה');
+        // חישוב ציוני תחומים (כמו באפליקציה)
+        const domainItems = {
+          basic_needs: ['q1', 'q2'],
+          individual_contribution: ['q3', 'q4'],
+          team_belonging: ['q5', 'q6', 'q7', 'q8', 'q9', 'q10'],
+          personal_growth: ['q11', 'q12'],
+        };
+
+        for (let i = 1; i <= 12; i++) {
+          const key = 'q' + i;
+          payload.itemScores[key] = parseInt(formData.get(key), 10);
+          const note = formData.get(key + '_note');
+          if (note && note.trim()) payload.itemNotes[key] = note.trim();
+        }
+
+        const domainScores = {};
+        for (const [domain, keys] of Object.entries(domainItems)) {
+          let sum = 0;
+          let count = 0;
+          keys.forEach(k => {
+            const v = payload.itemScores[k];
+            if (typeof v === 'number') {
+              sum += v;
+              count++;
+            }
+          });
+          if (count > 0) {
+            let avg = Math.round(sum / count);
+            avg = Math.max(1, Math.min(6, avg));
+            domainScores[domain] = avg;
+          }
+        }
+
+        // כתיבה ישירה ל-Firestore – יצירת מורה חדש מהטופס
+        await db
+          .collection('schools')
+          .doc(schoolId)
+          .collection('teachers')
+          .add({
+            name: teacherName,
+            seniorityYears: 0,
+            totalSeniorityYears: 0,
+            status: 'green',
+            createdAt: new Date().toISOString(),
+            workloadPercent: 86,
+            satisfactionRating: 3,
+            belongingRating: 3,
+            workloadRating: 3,
+            absencesThisYear: 0,
+            specialActivities: [],
+            busyWeekdays: [],
+            busySeason: null,
+            busyReason: null,
+            motivationStyles: payload.motivationStyles,
+            engagementSignals: [],
+            engagementDomainScores: domainScores,
+            engagementItemScores: payload.itemScores,
+            engagementItemNotes: payload.itemNotes,
+            engagementNote: payload.engagementNote,
+            roles: payload.roles,
+            formToken: token,
+          });
+
         showSuccess();
         document.getElementById('form').style.display = 'none';
       } catch (err) {
+        console.error(err);
         showErr(err.message || 'שגיאה בשליחת השאלון. נסי שוב.');
       } finally {
         btn.textContent = originalText;

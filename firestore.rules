@@ -3,23 +3,40 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // כללי אבטחה לבתי ספר
     match /schools/{schoolId} {
+      function isManager() {
+        return request.auth != null && request.auth.uid == schoolId;
+      }
+
+      // בדיקת טוקן לטופס החיצוני (ללא התחברות)
+      function externalFormTokenValid() {
+        return
+          request.resource.data.formToken != null &&
+          request.resource.data.formToken ==
+            get(/databases/$(database)/documents
+                /schools/$(schoolId)/settings/manager).data.schoolFormToken;
+      }
+
       // מנהל יכול לקרוא ולעדכן רק את בית הספר שלו
-      allow read, write: if request.auth != null && request.auth.uid == schoolId;
+      allow read, write: if isManager();
       
       // הגדרות מנהל (יעדים, כללים, נוטיפיקציות, דורשים טיפול)
       match /settings/{settingId} {
-        allow read, write: if request.auth != null && request.auth.uid == schoolId;
+        allow read, write: if isManager();
       }
 
       // כללי אבטחה למורים
       match /teachers/{teacherId} {
-        // מנהל יכול לקרוא ולעדכן רק את המורים של בית הספר שלו
-        allow read, write: if request.auth != null && request.auth.uid == schoolId;
+        // מנהל מחובר – כבר מכוסה ע״י allow ברמת בית הספר
+
+        // יצירת מורה חדש מטופס חיצוני (ללא התחברות)
+        allow create: if
+          request.auth == null &&
+          externalFormTokenValid();
         
         // כללי אבטחה לפעולות
         match /actions/{actionId} {
           // מנהל יכול לקרוא ולעדכן רק את הפעולות של המורים בבית הספר שלו
-          allow read, write: if request.auth != null && request.auth.uid == schoolId;
+          allow read, write: if isManager();
         }
       }
     }

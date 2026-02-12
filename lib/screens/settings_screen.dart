@@ -528,7 +528,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'כל מורה נכנס, בוחר את שמו, ממלא ושולח. הנתונים מוזנים לאפליקציה.',
+              'לקבלת קישור אישי למורה, היכנסי לכרטיס מורה ולחצי על כפתור השיתוף שם.',
               style: TextStyle(fontSize: 13, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
@@ -537,12 +537,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   try {
-                    final link = await _firestoreService.getOrCreateSchoolFormLink();
-                    await Clipboard.setData(ClipboardData(text: link));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('פתחי כרטיס של מורה ספציפי ולחצי שם על כפתור השיתוף.'),
+                    ),
+                  );
                     if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('הקישור הועתק ללוח. שלחי לקבוצת הצוות')),
-                      );
+                    // לא נדרש לבצע פעולה כאן – ההסבר בלבד.
                     }
                   } catch (e) {
                     if (mounted) {

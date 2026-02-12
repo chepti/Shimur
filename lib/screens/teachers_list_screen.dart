@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../models/manager_settings.dart';
 import '../services/firestore_service.dart';
@@ -42,29 +41,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
           elevation: 1,
           centerTitle: true,
           surfaceTintColor: Colors.white,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.link, color: Color(0xFF11a0db)),
-              tooltip: 'שתף קישור לשאלון מעורבות',
-              onPressed: () async {
-                try {
-                  final link = await _firestoreService.getOrCreateSchoolFormLink();
-                  await Clipboard.setData(ClipboardData(text: link));
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('הקישור הועתק – שלחי לקבוצת הצוות')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('שגיאה: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
           title: SizedBox(
             height: 40,
             child: Image.network(
@@ -125,89 +101,77 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     ? needAttentionList
                     : needAttentionList.take(limit).toList();
 
-                return ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _buildWelcomeHeader(context),
-                    const SizedBox(height: 16),
-                    _buildGoodWordArea(
-                      context: context,
-                      teachers: teachers,
-                      dailyGoal: _settings.goalsGoodWordsPerDay > 0
-                          ? _settings.goalsGoodWordsPerDay
-                          : 10,
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildWelcomeHeader(context),
+                const SizedBox(height: 16),
+                _buildGoodWordArea(
+                  context: context,
+                  teachers: teachers,
+                  dailyGoal: _settings.goalsGoodWordsPerDay > 0
+                      ? _settings.goalsGoodWordsPerDay
+                      : 10,
+                ),
+                if (displayedNeedAttention.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'דורשים טיפול',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
                     ),
-                    if (displayedNeedAttention.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      Text(
-                        'דורשים טיפול',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...displayedNeedAttention.map(
-                        (teacher) => TeacherCard(
-                          teacher: teacher,
-                          actionsCount: 0,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TeacherDetailsScreen(
-                                  teacherId: teacher.id,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                    Text(
-                      'הצוות שלי',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...teachers.map(
-                      (teacher) => TeacherCard(
-                        teacher: teacher,
-                        actionsCount: 0,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TeacherDetailsScreen(
-                                teacherId: teacher.id,
-                              ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...displayedNeedAttention.map(
+                    (teacher) => TeacherCard(
+                      teacher: teacher,
+                      actionsCount: 0,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TeacherDetailsScreen(
+                              teacherId: teacher.id,
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 80),
-                  ],
-                );
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                Text(
+                  'הצוות שלי',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...teachers.map(
+                  (teacher) => TeacherCard(
+                    teacher: teacher,
+                    actionsCount: 0,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TeacherDetailsScreen(
+                            teacherId: teacher.id,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 80),
+              ],
+            );
               },
             ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AddTeacherScreen(),
-              ),
-            );
-          },
-          backgroundColor: const Color(0xFF11a0db),
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
       ),
     );
   }
@@ -289,8 +253,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required List<Teacher> teachers,
     required int dailyGoal,
   }) {
-    final firestoreService = _firestoreService;
-
     return FutureBuilder<int>(
       future: firestoreService.getTodayCompletedActionsCount(),
       builder: (context, snapshot) {
@@ -299,32 +261,16 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.favorite_border, color: Color(0xFF11a0db)),
-                SizedBox(width: 8),
-                Text(
-                  'היום אמרתי מילה טובה',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'טאפּ אחד על הכפתור העגול – בחירת מורה מהירה ושמירת האינטראקציה.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
             GestureDetector(
-              onTap: () => _openGoodWordTeacherPicker(context, teachers),
+              onTap: () => _openInteractionTeacherPicker(
+                context,
+                teachers,
+                interactionType: 'התייחסתי',
+                sheetTitle: 'למי התייחסתי?',
+                sheetSubtitle:
+                    'בחר מורה אחד או כמה, והמערכת תשמור עבורך התייחסות קטנה.',
+                snackbarPrefix: 'נרשמה התייחסות למורה',
+              ),
               child: Container(
                 width: 220,
                 height: 220,
@@ -332,50 +278,90 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                   shape: BoxShape.circle,
                   gradient: const RadialGradient(
                     colors: [
-                      Color(0xFFFFF3EB), // רקע בהיר
+                      Color(0xFFFFF3EB),
                       Colors.white,
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFF36F21).withOpacity(0.25),
+                      color: const Color(0xFFED1C24).withOpacity(0.28),
                       blurRadius: 30,
                       offset: const Offset(0, 18),
                     ),
                   ],
                   border: Border.all(
-                    color: const Color(0xFF11a0db).withOpacity(0.25),
-                    width: 4,
+                    color: const Color(0xFFAC2B31).withOpacity(0.45),
+                    width: 5,
                   ),
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.chat_bubble_outline,
-                      size: 40,
-                      color: Color(0xFFF36F21),
+                      Icons.waves,
+                      size: 44,
+                      color: Color(0xFFED1C24),
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'אמרתי מילה טובה',
+                      'התייחסתי',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'נגיעה קטנה. השפעה גדולה.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildMiniInteractionCircle(
+                  label: 'מילה טובה',
+                  icon: Icons.favorite_border,
+                  color: const Color(0xFFED1C24),
+                  onTap: () => _openInteractionTeacherPicker(
+                    context,
+                    teachers,
+                    interactionType: 'מילה טובה קטנה',
+                    sheetTitle: 'למי אמרתי מילה טובה?',
+                    sheetSubtitle:
+                        'בחר מורה אחד או כמה, והמערכת תשמור מילה טובה קטנה.',
+                    snackbarPrefix: 'נשמרה מילה טובה למורה',
+                  ),
+                ),
+                _buildMiniInteractionCircle(
+                  label: 'דיבור קצר',
+                  icon: Icons.chat_bubble_outline,
+                  color: const Color(0xFFFAA41A),
+                  onTap: () => _openInteractionTeacherPicker(
+                    context,
+                    teachers,
+                    interactionType: 'דיבור קצר',
+                    sheetTitle: 'עם מי היה לי דיבור קצר?',
+                    sheetSubtitle:
+                        'בחר מורה אחד או כמה, והמערכת תשמור דיבור קצר.',
+                    snackbarPrefix: 'נשמר דיבור קצר עם',
+                  ),
+                ),
+                _buildMiniInteractionCircle(
+                  label: 'נפגשתי',
+                  icon: Icons.groups_outlined,
+                  color: const Color(0xFF40AE49),
+                  onTap: () => _openInteractionTeacherPicker(
+                    context,
+                    teachers,
+                    interactionType: 'נפגשתי',
+                    sheetTitle: 'עם מי נפגשתי?',
+                    sheetSubtitle:
+                        'בחר מורה אחד או כמה, והמערכת תשמור פגישה שהתקיימה.',
+                    snackbarPrefix: 'נשמרה פגישה עם',
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Column(

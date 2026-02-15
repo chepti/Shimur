@@ -8,7 +8,7 @@ import 'teacher_details_screen.dart';
 /// החלק ימינה = התייחסתי השבוע, שמאלה = לא התייחסתי.
 /// עדכון סטטוס רגשי (פורח/זורם/מתוח/מנותק/שחוק), היגדים מהשאלון להעברת לפעולה.
 class WeeklySummaryScreen extends StatefulWidget {
-  const WeeklySummaryScreen({Key? key}) : super(key: key);
+  const WeeklySummaryScreen({super.key});
 
   @override
   State<WeeklySummaryScreen> createState() => _WeeklySummaryScreenState();
@@ -34,16 +34,16 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     (key: 'q12', question: 'הזדמנויות ללמוד ולצמוח', problemLabel: 'למידה וצמיחה'),
   ];
 
-  /// 5 מדרגות סטטוס בעברית + צבע רמזור
+  /// 5 מדרגות סטטוס – מזהה שמור באנגלית, תצוגה בעברית + צבע
   static const List<({String id, String label, Color color})> _moodLevels = [
-    (id: 'פורח', label: 'פורח', color: Color(0xFF2E7D32)),
-    (id: 'זורם', label: 'זורם', color: Color(0xFF00897B)),
-    (id: 'מתוח', label: 'מתוח', color: Color(0xFFFF8F00)),
-    (id: 'מנותק', label: 'מנותק', color: Color(0xFFE65100)),
-    (id: 'שחוק', label: 'שחוק', color: Color(0xFFC62828)),
+    (id: 'bloom', label: 'פורח', color: Color(0xFF2E7D32)),
+    (id: 'flow', label: 'זורם', color: Color(0xFF00897B)),
+    (id: 'tense', label: 'מתוח', color: Color(0xFFFF8F00)),
+    (id: 'disconnected', label: 'מנותק', color: Color(0xFFE65100)),
+    (id: 'burned_out', label: 'שחוק', color: Color(0xFFC62828)),
   ];
 
-  /// מיפוי ערך שמור (אנגלית/עברית) לתצוגה בעברית – מונע גלישה לאנגלית
+  /// מיפוי ערך שמור (אנגלית/עברית) לתצוגה בעברית
   static String _moodDisplay(String? raw) {
     if (raw == null || raw.isEmpty) return 'לא עודכן';
     final lower = raw.toLowerCase();
@@ -146,9 +146,9 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
         if (!lowScore && !hasNote) continue;
         String description = '';
         if (lowScore && hasNote) {
-          description = 'מורה ${t.name}: ציון נמוך (${score}/6) + הערה: $note';
+          description = 'מורה ${t.name}: ציון נמוך ($score/6) + הערה: $note';
         } else if (lowScore) {
-          description = 'מורה ${t.name}: ציון נמוך בשאלה על ${item.problemLabel} (${score}/6)';
+          description = 'מורה ${t.name}: ציון נמוך בשאלה על ${item.problemLabel} ($score/6)';
         } else {
           description = 'מורה ${t.name}: הערה – $note';
         }
@@ -295,7 +295,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(Icons.assignment_turned_in, color: const Color(0xFF4CAF50), size: 20),
+          const Icon(Icons.assignment_turned_in, color: Color(0xFF4CAF50), size: 20),
           const SizedBox(width: 8),
           Text(
             'התייחסות מתועדת השבוע (ללא צורך לסווג)',
@@ -583,24 +583,20 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     );
   }
 
-  /// חיצי שיפור/החמרה – משנים את הסטטוס בפועל (דרגה אחת למעלה/למטה) ולא רק את ה-trend.
   Future<void> _setMoodTrend(Teacher teacher, String trend) async {
-    final currentRaw = _moodUpdates[teacher.id] ?? teacher.moodStatus;
-    final display = _moodDisplay(currentRaw);
-    if (display == 'לא עודכן') return;
-    final idx = _moodLevels.indexWhere((e) => e.label == display);
-    if (idx < 0) return;
-    int newIdx = trend == 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= _moodLevels.length) return;
-    final newStatus = _moodLevels[newIdx].id;
+    final current = _moodTrendUpdates[teacher.id] ?? teacher.moodTrend;
+    final newTrend = current == trend ? null : trend;
     setState(() {
-      _moodUpdates[teacher.id] = newStatus;
-      _moodTrendUpdates[teacher.id] = trend;
+      if (newTrend != null) {
+        _moodTrendUpdates[teacher.id] = newTrend;
+      } else {
+        _moodTrendUpdates.remove(teacher.id);
+      }
     });
     await _saveMoodFull(
       teacher,
-      newStatus,
-      trend,
+      _moodUpdates[teacher.id] ?? teacher.moodStatus,
+      newTrend,
       _moodNoteUpdates[teacher.id] ?? teacher.moodWeekNote,
     );
   }
@@ -664,8 +660,11 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   ElevatedButton(
                     onPressed: () async {
                       final newNote = noteController.text.trim().isEmpty ? null : noteController.text.trim();
-                      if (newNote != null) _moodNoteUpdates[teacher.id] = newNote;
-                      else _moodNoteUpdates.remove(teacher.id);
+                      if (newNote != null) {
+                        _moodNoteUpdates[teacher.id] = newNote;
+                      } else {
+                        _moodNoteUpdates.remove(teacher.id);
+                      }
                       Navigator.pop(ctx);
                       await _saveMoodFull(
                         teacher,

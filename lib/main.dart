@@ -203,9 +203,8 @@ class CustomBottomNavBar extends StatelessWidget {
                           elevation: 6,
                           clipper: _NavBarNotchedClipper(
                             notchCenterX: notchCenterX,
-                            notchRadius: circleRadius + 6,
+                            notchRadius: circleRadius * 2,
                             cornerRadius: 32,
-                            notchDepth: circleRadius * 2.1,
                           ),
                           child: SizedBox(
                             height: barHeight,
@@ -282,21 +281,19 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
     required this.notchCenterX,
     required this.notchRadius,
     required this.cornerRadius,
-    required this.notchDepth,
   });
 
   final double notchCenterX;
   final double notchRadius;
   final double cornerRadius;
-  final double notchDepth;
 
   @override
   Path getClip(Size size) {
     final double r =
-        cornerRadius.clamp(0, size.height / 2); // רדיוס פינות אחיד
+        cornerRadius.clamp(0, size.height / 2); // רדיוס פינות אחיד לפינות
 
-    final double minX = r;
-    final double maxX = size.width - r;
+    final double minX = r + 4;
+    final double maxX = size.width - r - 4;
 
     final double startX =
         (notchCenterX - notchRadius).clamp(minX, maxX); // תחילת המגרעת
@@ -305,36 +302,20 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
 
     final Path path = Path();
 
-    // מתחילים קצת מימין לפינה השמאלית העליונה
-    path.moveTo(r, 0);
+    // מתחילים בצד שמאל, באמצע הגובה של הפינה
+    path.moveTo(0, r);
 
-    // קשת הפינה השמאלית העליונה
-    path.quadraticBezierTo(0, 0, 0, r);
-
-    // צד שמאל עד למעלה
-    path.lineTo(0, r);
+    // פינה שמאלית עליונה
+    path.quadraticBezierTo(0, 0, r, 0);
 
     // קו עליון עד תחילת המגרעת
     path.lineTo(startX, 0);
 
-    // מגרעת חלקה בשני מקטעי Bezier, כך שהחיבורים למעלה נשארים אופקיים
-    final double midX = notchCenterX;
-    final double depth = notchDepth.clamp(0, size.height * 0.9);
-
-    // חלק שמאלי של המגרעת
-    path.quadraticBezierTo(
-      (startX + midX) / 2,
-      0,
-      midX,
-      depth,
-    );
-
-    // חלק ימני של המגרעת
-    path.quadraticBezierTo(
-      (endX + midX) / 2,
-      0,
-      endX,
-      0,
+    // מגרעת – קשת חלקה (קמורה פנימה) בין startX ל-endX
+    path.arcToPoint(
+      Offset(endX, 0),
+      radius: Radius.circular(notchRadius),
+      clockwise: false,
     );
 
     // המשך הקו העליון עד הפינה הימנית העליונה
@@ -343,15 +324,15 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
 
     // צד ימין למטה
     path.lineTo(size.width, size.height - r);
-    path.quadraticBezierTo(size.width, size.height, size.width - r, size.height);
+    path.quadraticBezierTo(
+        size.width, size.height, size.width - r, size.height);
 
-    // קו תחתון עד הפינה השמאלית התחתונה
+    // תחתית עד הפינה השמאלית התחתונה
     path.lineTo(r, size.height);
     path.quadraticBezierTo(0, size.height, 0, size.height - r);
 
-    // חוזרים כלפי מעלה לנקודת ההתחלה
+    // חזרה לנקודת ההתחלה
     path.lineTo(0, r);
-    path.quadraticBezierTo(0, 0, r, 0);
 
     path.close();
 
@@ -362,8 +343,7 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant _NavBarNotchedClipper oldClipper) {
     return oldClipper.notchCenterX != notchCenterX ||
         oldClipper.notchRadius != notchRadius ||
-        oldClipper.cornerRadius != cornerRadius ||
-        oldClipper.notchDepth != notchDepth;
+        oldClipper.cornerRadius != cornerRadius;
   }
 }
 

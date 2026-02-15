@@ -663,14 +663,19 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'bloom':
+      case 'פורח':
         return const Color(0xFF40AE49);
       case 'flow':
+      case 'זורם':
         return const Color(0xFFB2D234);
       case 'tense':
+      case 'מתוח':
         return const Color(0xFFFAA41A);
       case 'disconnected':
+      case 'מנותק':
         return const Color(0xFFED1C24);
       case 'burned_out':
+      case 'שחוק':
         return const Color(0xFFAC2B31);
       case 'green':
         return const Color(0xFF40AE49);

@@ -233,8 +233,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildKpiRow(List<Teacher> teachers, DashboardStats stats) {
     final needAttention = _teachersNeedingAttention(teachers);
     final totalTeachers = teachers.length;
-    final atRiskCount =
-        teachers.where((t) => (t.moodStatus ?? t.status) == 'disconnected' || (t.moodStatus ?? t.status) == 'burned_out' || t.status == 'red').length;
+    final atRiskCount = teachers.where((t) {
+      final moodKey = _mapLegacyStatusToMood(t.moodStatus ?? t.status);
+      return moodKey == 'disconnected' || moodKey == 'burned_out';
+    }).length;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -397,8 +399,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         );
                       },
                     ),
+                    // פתיחת רשימת המורים רק בלחיצה, לא בריחוף
                     touchCallback: (event, response) {
-                      if (!event.isInterestedForInteractions ||
+                      if (event is! FlTapUpEvent ||
                           response == null ||
                           response.spot == null) {
                         return;
@@ -741,12 +744,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   int _needAttentionScore(Teacher t, DateTime now) {
     int score = 0;
-    final mood = t.moodStatus ?? t.status;
+    final mood = _mapLegacyStatusToMood(t.moodStatus ?? t.status);
     if (mood == 'burned_out') {
       score += 140;
-    } else if (mood == 'disconnected' || t.status == 'red') {
+    } else if (mood == 'disconnected') {
       score += 120;
-    } else if (mood == 'tense' || t.status == 'yellow') {
+    } else if (mood == 'tense') {
       score += 70;
     }
 
@@ -795,7 +798,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 subtitle: _buildNeedAttentionSubtitle(t),
                 trailing: StatusIndicator(
-                  status: t.moodStatus ?? t.status,
+                  status:
+                      _mapLegacyStatusToMood(t.moodStatus ?? t.status) ?? t.status,
                   size: 14,
                 ),
                 onTap: () {
@@ -830,8 +834,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    final mood = t.moodStatus ?? t.status;
-    final moodText = _moodStatusLabel(mood);
+    final moodKey = _mapLegacyStatusToMood(t.moodStatus ?? t.status);
+    final moodText = _moodStatusLabel(moodKey ?? 'unknown');
 
     return Text(
       '$moodText · $daysText',
@@ -845,9 +849,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String statusKey,
     String label,
   ) {
-    final filtered = teachers
-        .where((t) => (t.moodStatus ?? _mapLegacyStatusToMood(t.status)) == statusKey)
-        .toList();
+    final filtered = teachers.where((t) {
+      final moodKey = _mapLegacyStatusToMood(t.moodStatus ?? t.status);
+      return moodKey == statusKey;
+    }).toList();
 
     if (filtered.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -971,7 +976,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (var teacher in teachers) {
       statusCount[teacher.status] = (statusCount[teacher.status] ?? 0) + 1;
 
-      final moodKey = teacher.moodStatus ?? _mapLegacyStatusToMood(teacher.status);
+      final moodKey =
+          _mapLegacyStatusToMood(teacher.moodStatus ?? teacher.status);
       if (moodKey != null && moodStatusCount.containsKey(moodKey)) {
         moodStatusCount[moodKey] = (moodStatusCount[moodKey] ?? 0) + 1;
       }
@@ -1085,15 +1091,35 @@ class DashboardStats {
   }
 }
 
-  String? _mapLegacyStatusToMood(String status) {
-    switch (status) {
-      case 'green':
-        return 'bloom';
-      case 'yellow':
-        return 'flow';
-      case 'red':
-        return 'disconnected';
-      default:
-        return null;
-    }
+String? _mapLegacyStatusToMood(String? raw) {
+  if (raw == null) return null;
+  final lower = raw.toLowerCase();
+  switch (lower) {
+    // ערכי סטטוס רגשי (אנגלית/עברית)
+    case 'bloom':
+    case 'פורח':
+      return 'bloom';
+    case 'flow':
+    case 'זורם':
+      return 'flow';
+    case 'tense':
+    case 'מתוח':
+      return 'tense';
+    case 'disconnected':
+    case 'מנותק':
+      return 'disconnected';
+    case 'burned_out':
+    case 'שחוק':
+      return 'burned_out';
+
+    // מיפוי מרמזור ישן
+    case 'green':
+      return 'bloom';
+    case 'yellow':
+      return 'flow';
+    case 'red':
+      return 'disconnected';
+    default:
+      return null;
   }
+}

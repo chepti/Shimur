@@ -169,7 +169,7 @@ class CustomBottomNavBar extends StatelessWidget {
               builder: (context, constraints) {
                 const double horizontalPadding = 16;
                 const double barHeight = 72;
-                const double circleRadius = 15;
+                const double circleRadius = 13;
 
                 final double barWidth =
                     constraints.maxWidth - (horizontalPadding * 2);
@@ -307,16 +307,18 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
     path.quadraticBezierTo(0, 0, r, 0);
     path.lineTo(startX, 0);
 
-    // גומה רכה: שני Bezier עם משיק אופקי בקצוות (בלי זוויות חדות)
+    // גומה מעוגלת: צדדים רכים (בקרה קרוב ל־y=0) ואמצע מעוגל (פגישה בתחתית) – בלי שפיץ
+    const double sideBlend = 0.18; // חיבור רך לצדדים
+    const double midBlend = 0.5;   // עיגול האמצע
     path.quadraticBezierTo(
-      (startX + midX) / 2,
-      0,
+      startX + halfWidth * midBlend,
+      depth * sideBlend,
       midX,
       depth,
     );
     path.quadraticBezierTo(
-      (midX + endX) / 2,
-      0,
+      endX - halfWidth * midBlend,
+      depth * sideBlend,
       endX,
       0,
     );

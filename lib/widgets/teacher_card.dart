@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import 'status_indicator.dart';
-import 'hebrew_gregorian_date.dart';
 
 class TeacherCard extends StatelessWidget {
   final Teacher teacher;
@@ -27,91 +26,79 @@ class TeacherCard extends StatelessWidget {
         ? 'עדיין לא נוצר יחס'
         : (daysSinceLast == 1 ? 'יום מהיחס האחרון' : 'ימים מהיחס האחרון');
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  StatusIndicator(
-                    status: teacher.moodStatus ?? teacher.status,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          teacher.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        if (teacher.roles.isNotEmpty)
-                          Row(
-                            children: _buildRoleIcons(teacher.roles),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      text: daysNumberText,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      children: [
-                        const TextSpan(text: ' '),
-                        TextSpan(
-                          text: daysLabelText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (actionsCount > 0)
-                    _buildInfoChip(
-                      '$actionsCount פעולות',
-                      Icons.check_circle,
-                    ),
-                ],
-              ),
-              if (_parseNextActionDate(teacher.nextActionDate) != null) ...[
-                const SizedBox(height: 6),
-                _buildDateChip(
-                  _parseNextActionDate(teacher.nextActionDate!)!,
-                  Icons.event,
-                  color: const Color(0xFF11a0db),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(40),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(40),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                StatusIndicator(
+                  status: teacher.moodStatus ?? teacher.status,
+                  size: 12,
                 ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    teacher.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ..._buildRoleIcons(teacher.roles),
+                const SizedBox(width: 8),
+                RichText(
+                  text: TextSpan(
+                    text: daysNumberText,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    children: [
+                      const TextSpan(text: ' '),
+                      TextSpan(
+                        text: daysLabelText,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (actionsCount > 0) ...[
+                  const Spacer(),
+                  _buildInfoChip(
+                    '$actionsCount פעולות',
+                    Icons.check_circle,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -153,12 +140,12 @@ class TeacherCard extends StatelessWidget {
 
     // מקצועות לימוד – התאמת אייקון לפי תחום
     if (r.contains('ספורט') ||
-        r.contains('חנ\"ג') ||
+        r.contains('חנ"ג') ||
         r.contains('חנג') ||
         r.contains('חינוך גופ')) {
       return Icons.sports_soccer;
     }
-    if (r.contains('תנ\"ך') || r.contains('תנך') || r.contains('מקרא')) {
+    if (r.contains('תנ"ך') || r.contains('תנך') || r.contains('מקרא')) {
       return Icons.menu_book;
     }
     if (r.contains('היסט') || r.contains('אזרחות')) {
@@ -229,59 +216,4 @@ class TeacherCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDateChip(DateTime date, IconData icon, {Color? color}) {
-    final chipColor = color ?? Colors.grey[400]!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: chipColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.grey[600]),
-          const SizedBox(width: 6),
-          HebrewGregorianDateText(
-            date: date,
-            hebrewStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            gregorianStyle: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  DateTime? _parseNextActionDate(String? raw) {
-    if (raw == null) return null;
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return null;
-
-    // נסיון ראשון: ISO-8601
-    final iso = DateTime.tryParse(trimmed);
-    if (iso != null) return iso;
-
-    // פורמט ישן: יום/חודש/שנה
-    final parts = trimmed.split('/');
-    if (parts.length == 3) {
-      final day = int.tryParse(parts[0]);
-      final month = int.tryParse(parts[1]);
-      final year = int.tryParse(parts[2]);
-      if (day != null && month != null && year != null) {
-        return DateTime(year, month, day);
-      }
-    }
-
-    return null;
-  }
 }

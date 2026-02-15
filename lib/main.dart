@@ -309,7 +309,7 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
 
     // גומה מעוגלת: צדדים רכים (בקרה קרוב ל־y=0) ואמצע מעוגל (פגישה בתחתית) – בלי שפיץ
     const double sideBlend = 0.18; // חיבור רך לצדדים
-    const double midBlend = 0.5;   // עיגול האמצע
+    const double midBlend = 0.8;   // עיגול האמצע
     path.quadraticBezierTo(
       startX + halfWidth * midBlend,
       depth * sideBlend,

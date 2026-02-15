@@ -169,7 +169,7 @@ class CustomBottomNavBar extends StatelessWidget {
               builder: (context, constraints) {
                 const double horizontalPadding = 16;
                 const double barHeight = 72;
-                const double circleRadius = 13;
+                const double circleRadius = 15;
 
                 final double barWidth =
                     constraints.maxWidth - (horizontalPadding * 2);
@@ -203,7 +203,8 @@ class CustomBottomNavBar extends StatelessWidget {
                           elevation: 6,
                           clipper: _NavBarNotchedClipper(
                             notchCenterX: notchCenterX,
-                            notchRadius: circleRadius * 2,
+                            notchWidth: circleRadius * 2.2,
+                            notchDepth: circleRadius * 0.85,
                             cornerRadius: 32,
                           ),
                           child: SizedBox(
@@ -279,61 +280,55 @@ class _NavItemData {
 class _NavBarNotchedClipper extends CustomClipper<Path> {
   _NavBarNotchedClipper({
     required this.notchCenterX,
-    required this.notchRadius,
+    required this.notchWidth,
+    required this.notchDepth,
     required this.cornerRadius,
   });
 
   final double notchCenterX;
-  final double notchRadius;
+  final double notchWidth;
+  final double notchDepth;
   final double cornerRadius;
 
   @override
   Path getClip(Size size) {
     final double r =
-        cornerRadius.clamp(0, size.height / 2); // רדיוס פינות אחיד לפינות
+        cornerRadius.clamp(0, size.height / 2);
 
-    final double minX = r + 4;
-    final double maxX = size.width - r - 4;
-
-    final double startX =
-        (notchCenterX - notchRadius).clamp(minX, maxX); // תחילת המגרעת
-    final double endX =
-        (notchCenterX + notchRadius).clamp(minX, maxX); // סוף המגרעת
+    final double halfWidth = (notchWidth / 2).clamp(8, size.width / 2 - r - 4);
+    final double startX = (notchCenterX - halfWidth).clamp(r + 4, size.width - r - 4);
+    final double endX = (notchCenterX + halfWidth).clamp(r + 4, size.width - r - 4);
+    final double midX = notchCenterX;
+    final double depth = notchDepth.clamp(4, size.height * 0.45);
 
     final Path path = Path();
 
-    // מתחילים בצד שמאל, באמצע הגובה של הפינה
     path.moveTo(0, r);
-
-    // פינה שמאלית עליונה
     path.quadraticBezierTo(0, 0, r, 0);
-
-    // קו עליון עד תחילת המגרעת
     path.lineTo(startX, 0);
 
-    // מגרעת – קשת חלקה (קמורה פנימה) בין startX ל-endX
-    path.arcToPoint(
-      Offset(endX, 0),
-      radius: Radius.circular(notchRadius),
-      clockwise: false,
+    // גומה רכה: שני Bezier עם משיק אופקי בקצוות (בלי זוויות חדות)
+    path.quadraticBezierTo(
+      (startX + midX) / 2,
+      0,
+      midX,
+      depth,
+    );
+    path.quadraticBezierTo(
+      (midX + endX) / 2,
+      0,
+      endX,
+      0,
     );
 
-    // המשך הקו העליון עד הפינה הימנית העליונה
     path.lineTo(size.width - r, 0);
     path.quadraticBezierTo(size.width, 0, size.width, r);
-
-    // צד ימין למטה
     path.lineTo(size.width, size.height - r);
     path.quadraticBezierTo(
         size.width, size.height, size.width - r, size.height);
-
-    // תחתית עד הפינה השמאלית התחתונה
     path.lineTo(r, size.height);
     path.quadraticBezierTo(0, size.height, 0, size.height - r);
-
-    // חזרה לנקודת ההתחלה
     path.lineTo(0, r);
-
     path.close();
 
     return path;
@@ -342,7 +337,8 @@ class _NavBarNotchedClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant _NavBarNotchedClipper oldClipper) {
     return oldClipper.notchCenterX != notchCenterX ||
-        oldClipper.notchRadius != notchRadius ||
+        oldClipper.notchWidth != notchWidth ||
+        oldClipper.notchDepth != notchDepth ||
         oldClipper.cornerRadius != cornerRadius;
   }
 }

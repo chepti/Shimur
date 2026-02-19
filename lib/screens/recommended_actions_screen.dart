@@ -10,9 +10,9 @@ class RecommendedActionsScreen extends StatefulWidget {
   final bool pickerMode;
 
   const RecommendedActionsScreen({
-    Key? key,
+    super.key,
     this.pickerMode = false,
-  }) : super(key: key);
+  });
 
   @override
   State<RecommendedActionsScreen> createState() =>
@@ -475,7 +475,7 @@ class _AddRecommendedActionPageState extends State<_AddRecommendedActionPage> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: null,
+                initialValue: null,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   filled: true,

@@ -26,6 +26,14 @@ class ManagerSettings {
   /// טוקן למילוי טופס שאלון חיצוני – קישור אחיד לכל הצוות
   final String? schoolFormToken;
 
+  /// מפתח API של Gemini (מ־aistudio.google.com) – לניסוח הודעות והמלצות
+  final String? geminiApiKey;
+  /// הגבלת בקשות AI לחודש (מחדל 50) – למניעת חריגת תקציב
+  final int geminiUsageLimitPerMonth;
+  /// ספירת בקשות AI בחודש הנוכחי (מפתח: yyyy-MM)
+  final String? geminiUsageMonth;
+  final int geminiUsageCount;
+
   const ManagerSettings({
     this.goalsGoodWordsPerDay = 10,
     this.goalsGoodWordsPerWeek = 40,
@@ -39,6 +47,10 @@ class ManagerSettings {
     this.notificationEndWeekMinute = 0,
     this.needAttentionLimit = '5',
     this.schoolFormToken,
+    this.geminiApiKey,
+    this.geminiUsageLimitPerMonth = 50,
+    this.geminiUsageMonth,
+    this.geminiUsageCount = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -55,6 +67,10 @@ class ManagerSettings {
       'notificationEndWeekMinute': notificationEndWeekMinute,
       'needAttentionLimit': needAttentionLimit,
       'schoolFormToken': schoolFormToken,
+      'geminiApiKey': geminiApiKey,
+      'geminiUsageLimitPerMonth': geminiUsageLimitPerMonth,
+      'geminiUsageMonth': geminiUsageMonth,
+      'geminiUsageCount': geminiUsageCount,
     };
   }
 
@@ -86,6 +102,10 @@ class ManagerSettings {
       notificationEndWeekMinute: _toInt(map['notificationEndWeekMinute'], 0),
       needAttentionLimit: _toString(map['needAttentionLimit'], '5'),
       schoolFormToken: map['schoolFormToken'] as String?,
+      geminiApiKey: map['geminiApiKey'] as String?,
+      geminiUsageLimitPerMonth: _toInt(map['geminiUsageLimitPerMonth'], 50),
+      geminiUsageMonth: map['geminiUsageMonth'] as String?,
+      geminiUsageCount: _toInt(map['geminiUsageCount'], 0),
     );
   }
 
@@ -102,6 +122,10 @@ class ManagerSettings {
     int? notificationEndWeekMinute,
     String? needAttentionLimit,
     String? schoolFormToken,
+    String? geminiApiKey,
+    int? geminiUsageLimitPerMonth,
+    String? geminiUsageMonth,
+    int? geminiUsageCount,
   }) {
     return ManagerSettings(
       goalsGoodWordsPerDay: goalsGoodWordsPerDay ?? this.goalsGoodWordsPerDay,
@@ -116,6 +140,11 @@ class ManagerSettings {
       notificationEndWeekMinute: notificationEndWeekMinute ?? this.notificationEndWeekMinute,
       needAttentionLimit: needAttentionLimit ?? this.needAttentionLimit,
       schoolFormToken: schoolFormToken ?? this.schoolFormToken,
+      geminiApiKey: geminiApiKey ?? this.geminiApiKey,
+      geminiUsageLimitPerMonth:
+          geminiUsageLimitPerMonth ?? this.geminiUsageLimitPerMonth,
+      geminiUsageMonth: geminiUsageMonth ?? this.geminiUsageMonth,
+      geminiUsageCount: geminiUsageCount ?? this.geminiUsageCount,
     );
   }
 

@@ -3,7 +3,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -145,12 +145,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         // טקסט "חמד"
-                        Text(
+                        const Text(
                           'חמד',
                           style: TextStyle(
                             fontSize: 48,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF11a0db),
+                            color: Color(0xFF11a0db),
                             letterSpacing: 2,
                           ),
                         ),

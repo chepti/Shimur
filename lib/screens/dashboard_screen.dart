@@ -454,9 +454,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     rightTitles:
-                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     topTitles:
-                        AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: FlGridData(
                     show: true,
@@ -659,10 +659,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               },
                             ),
                           ),
-                          rightTitles: AxisTitles(
+                          rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          topTitles: AxisTitles(
+                          topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                         ),
@@ -673,7 +673,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             isCurved: true,
                             barWidth: 3,
                             color: typeColors[key],
-                            dotData: FlDotData(show: false),
+                            dotData: const FlDotData(show: false),
                             belowBarData: BarAreaData(
                               show: true,
                               color: typeColors[key]!.withOpacity(0.15),

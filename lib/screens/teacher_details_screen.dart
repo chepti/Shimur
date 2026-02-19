@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart' hide Action;
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../models/teacher.dart';
 import '../models/action.dart';
 import '../services/firestore_service.dart';
+import '../services/gemini_service.dart';
 import '../widgets/status_indicator.dart';
 import '../widgets/hebrew_gregorian_date.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
 import 'engagement_survey_screen.dart';
+import 'external_survey_results_screen.dart';
+import '../models/external_survey.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
   final String teacherId;
@@ -26,6 +30,21 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   final _nextActionTypeController = TextEditingController();
   bool _controllersInitialized = false;
   int _refreshKey = 0;
+
+  Future<List<ExternalSurvey>> _getExternalSurveysForTeacher(Teacher teacher) async {
+    try {
+      final allSurveys = await _firestoreService.getExternalSurveysStream().first;
+      // מחזיר רק שאלונים שיש למורה תשובות אליהם או שהם פעילים
+      return allSurveys.where((survey) {
+        return survey.isActive &&
+            (teacher.externalSurveys.containsKey(survey.id) ||
+                survey.expiresAt == null ||
+                survey.expiresAt!.isAfter(DateTime.now()));
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
 
   @override
   void dispose() {
@@ -133,7 +152,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               builder: (dctx) => AlertDialog(
                                 title: const Text('אישור איחוד'),
                                 content: Text(
-                                  'לאחד את המורה \"${current.name}\" אל תוך \"${other.name}\"?\n'
+                                  'לאחד את המורה "${current.name}" אל תוך "${other.name}"?\n'
                                   'הפעולות והמידע של ${current.name} יעברו למורה ${other.name} והמורה הנוכחי יימחק.',
                                 ),
                                 actions: [
@@ -302,6 +321,16 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                             Icons.work,
                             'וותק כללי: ${teacher.totalSeniorityYears} שנים',
                           ),
+                          if (teacher.mobilePhone != null &&
+                              teacher.mobilePhone!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            _buildInfoRow(
+                              Icons.phone_android,
+                              teacher.mobilePhone!,
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          _buildAiMessageButton(teacher),
                           const SizedBox(height: 12),
                           const Divider(),
                           const SizedBox(height: 8),
@@ -494,6 +523,68 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               ),
                             ],
                           ],
+                          // שאלונים חיצוניים
+                          if (teacher.externalSurveys.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'שאלונים חיצוניים',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FutureBuilder<List<ExternalSurvey>>(
+                              future: _getExternalSurveysForTeacher(teacher),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+                                final surveys = snapshot.data ?? [];
+                                if (surveys.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: surveys.map((survey) {
+                                    final hasResponse = teacher.externalSurveys
+                                        .containsKey(survey.id);
+                                    return ActionChip(
+                                      avatar: Icon(
+                                        hasResponse
+                                            ? Icons.check_circle
+                                            : Icons.radio_button_unchecked,
+                                        size: 18,
+                                        color: hasResponse
+                                            ? Colors.green
+                                            : Colors.grey,
+                                      ),
+                                      label: Text(survey.title),
+                                      onPressed: hasResponse
+                                          ? () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ExternalSurveyResultsScreen(
+                                                    surveyId: survey.id,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          : null,
+                                      backgroundColor: hasResponse
+                                          ? const Color(0xFFE8F5E9)
+                                          : Colors.grey[200],
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
+                          ],
                           if (teacher.notes != null &&
                               teacher.notes!.isNotEmpty) ...[
                             const SizedBox(height: 16),
@@ -597,6 +688,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                         MaterialPageRoute(
                           builder: (context) => AddActionScreen(
                             teacherId: widget.teacherId,
+                            teacher: teacher,
                           ),
                         ),
                       );
@@ -694,6 +786,50 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAiMessageButton(Teacher teacher) {
+    return FutureBuilder<(bool, String?)>(
+      future: _firestoreService.canUseGemini(),
+      builder: (context, snapshot) {
+        final canUse = snapshot.data?.$1 ?? false;
+        if (!canUse) return const SizedBox.shrink();
+
+        return OutlinedButton.icon(
+          onPressed: () => _showAiMessageSheet(context, teacher),
+          icon: const Icon(Icons.auto_awesome, size: 20),
+          label: const Text('הצע הודעה מותאמת'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF11a0db),
+            side: const BorderSide(color: Color(0xFF11a0db)),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAiMessageSheet(BuildContext context, Teacher teacher) async {
+    final (canUse, errorMsg) = await _firestoreService.canUseGemini();
+    if (!canUse) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg ?? 'לא ניתן להשתמש ב-AI')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AiMessageSheet(
+        teacher: teacher,
+        firestoreService: _firestoreService,
       ),
     );
   }
@@ -880,6 +1016,132 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// גיליון להצגת הודעות AI מותאמות – עם אפשרות להעתקה.
+class _AiMessageSheet extends StatefulWidget {
+  final Teacher teacher;
+  final FirestoreService firestoreService;
+
+  const _AiMessageSheet({
+    required this.teacher,
+    required this.firestoreService,
+  });
+
+  @override
+  State<_AiMessageSheet> createState() => _AiMessageSheetState();
+}
+
+class _AiMessageSheetState extends State<_AiMessageSheet> {
+  List<String>? _drafts;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final drafts = await GeminiService.generateMessageDrafts(
+        teacher: widget.teacher,
+      );
+      await widget.firestoreService.recordGeminiUsage();
+      if (mounted) {
+        setState(() {
+          _drafts = drafts;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'שגיאה: $e';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'הודעות מותאמות ל־${widget.teacher.name}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_error != null)
+                Text(_error!, style: TextStyle(color: Colors.red[700]))
+              else if (_drafts != null && _drafts!.isNotEmpty)
+                ..._drafts!.map((text) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: text));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('הועתק ללוח')),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(text)),
+                              const Icon(Icons.copy, size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ))
+              else
+                const Text('לא נוצרו הצעות. נסי שוב.'),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

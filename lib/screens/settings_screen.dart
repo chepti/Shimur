@@ -4,6 +4,7 @@ import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'add_teacher_screen.dart';
+import 'external_surveys_screen.dart';
 
 // צבעי הדגשה למסך הגדרות
 const Color _AccentRedDark = Color(0xFFAC2B31);
@@ -115,8 +116,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 20),
                   _buildSectionTitle('שאלון מעורבות', _AccentGreen),
                   _buildFormLinkCard(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle('שאלונים חיצוניים', _AccentGreen),
+                  _buildExternalSurveysCard(),
+                  const SizedBox(height: 20),
+                  _buildSectionTitle('בינה מלאכותית (Gemini)', _AccentLime),
+                  _buildGeminiCard(),
                   const SizedBox(height: 24),
-                  _buildSignOutCard(),
+                _buildSignOutCard(),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -615,6 +622,144 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExternalSurveysCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.quiz, color: _AccentGreen, size: 22),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'שאלונים חיצוניים',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'צרי שאלונים מותאמים אישית (אקלים, רווחה וכו\') והפיצי קישור לצוות. התשובות יישמרו בכרטיסי המורים.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ExternalSurveysScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.quiz),
+                label: const Text('נהל שאלונים חיצוניים'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _AccentGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeminiCard() {
+    final monthKey =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    final usageCount = _settings.geminiUsageMonth == monthKey
+        ? _settings.geminiUsageCount
+        : 0;
+    final limit = _settings.geminiUsageLimitPerMonth;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_CardRadius),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.auto_awesome, color: _AccentLime, size: 22),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ניסוח הודעות והמלצות מותאמות',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'משתמש ב-Firebase AI Logic – מחובר לחשבון Google של הפרויקט. המכסה החודשית מגבילה את השימוש.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.speed, color: _AccentLime, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'מכסה: $usageCount / $limit בקשות לחודש',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              r'מכסה מומלצת: 50–100 בקשות לחודש (כ־$0.50–1 לחודש)',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 100,
+              child: TextFormField(
+                initialValue: '$limit',
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+                decoration: InputDecoration(
+                  labelText: 'מכסה לחודש',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onChanged: (v) {
+                  final n = int.tryParse(v);
+                  if (n != null && n >= 1 && n <= 500) {
+                    _saveSettings(
+                      _settings.copyWith(geminiUsageLimitPerMonth: n),
+                    );
+                  }
+                },
               ),
             ),
           ],

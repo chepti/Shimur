@@ -5,7 +5,7 @@ import '../services/firestore_service.dart';
 class AddTeacherScreen extends StatefulWidget {
   final Teacher? teacher;
 
-  const AddTeacherScreen({Key? key, this.teacher}) : super(key: key);
+  const AddTeacherScreen({super.key, this.teacher});
 
   bool get isEditMode => teacher != null;
 
@@ -16,6 +16,7 @@ class AddTeacherScreen extends StatefulWidget {
 class _AddTeacherScreenState extends State<AddTeacherScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _roleController = TextEditingController();
   final _notesController = TextEditingController();
   final _firestoreService = FirestoreService();
@@ -40,6 +41,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     final teacher = widget.teacher;
     if (teacher != null) {
       _nameController.text = teacher.name;
+      _phoneController.text = teacher.mobilePhone ?? '';
       _roleController.text = teacher.roles.join(', ');
       _notesController.text = teacher.notes ?? '';
       _selectedStatus = teacher.status;
@@ -57,6 +59,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _roleController.dispose();
     _notesController.dispose();
     _busyReasonController.dispose();
@@ -84,6 +87,8 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
           ? _initialBusySeasonText
           : _formatBusySeason(_busySeasonRange!);
 
+      final phoneText = _phoneController.text.trim();
+
       if (widget.teacher == null) {
         final teacher = Teacher(
           id: '', // יווצר אוטומטית ב-Firestore
@@ -99,6 +104,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
           busyReason: busyReasonText.isEmpty ? null : busyReasonText,
           motivationStyles: _selectedMotivationStyles.toList(),
           engagementSignals: _selectedEngagementSignals.toList(),
+          mobilePhone: phoneText.isEmpty ? null : phoneText,
         );
 
         await _firestoreService.addTeacher(teacher);
@@ -118,6 +124,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
           busyWeekdays: _busyWeekdays.toList(),
           busySeason: busySeasonText,
           busyReason: busyReasonText.isEmpty ? null : busyReasonText,
+          mobilePhone: phoneText.isEmpty ? null : phoneText,
           motivationStyles: _selectedMotivationStyles.toList(),
           engagementSignals: _selectedEngagementSignals.toList(),
         );
@@ -197,6 +204,20 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'טלפון נייד',
+                    prefixIcon: const Icon(Icons.phone_android),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

@@ -6,9 +6,9 @@ class EngagementSurveyScreen extends StatefulWidget {
   final String teacherId;
 
   const EngagementSurveyScreen({
-    Key? key,
+    super.key,
     required this.teacherId,
-  }) : super(key: key);
+  });
 
   @override
   State<EngagementSurveyScreen> createState() => _EngagementSurveyScreenState();

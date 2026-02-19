@@ -6,6 +6,7 @@ import '../models/action.dart';
 import '../models/manager_settings.dart';
 import '../models/recommended_action.dart';
 import '../models/recommended_action_comment.dart';
+import '../models/external_survey.dart';
 import '../services/auth_service.dart';
 
 class FirestoreService {
@@ -130,30 +131,33 @@ class FirestoreService {
 
     // מיזוג מידע: שומרים את המורה היעד כ"קאנוני",
     // וממלאים רק שדות שחסרים/ריקים אצלו מתוך מורה המקור.
-    bool _isEmptyMap(Map m) => m.isEmpty;
-    bool _isEmptyList(List l) => l.isEmpty;
+    bool isEmptyMap(Map m) => m.isEmpty;
+    bool isEmptyList(List l) => l.isEmpty;
 
     final merged = toTeacher.copyWith(
       notes: toTeacher.notes ?? fromTeacher.notes,
-      motivationStyles: !_isEmptyList(toTeacher.motivationStyles)
+      motivationStyles: !isEmptyList(toTeacher.motivationStyles)
           ? toTeacher.motivationStyles
           : fromTeacher.motivationStyles,
-      engagementSignals: !_isEmptyList(toTeacher.engagementSignals)
+      engagementSignals: !isEmptyList(toTeacher.engagementSignals)
           ? toTeacher.engagementSignals
           : fromTeacher.engagementSignals,
-      engagementDomainScores: !_isEmptyMap(toTeacher.engagementDomainScores)
+      engagementDomainScores: !isEmptyMap(toTeacher.engagementDomainScores)
           ? toTeacher.engagementDomainScores
           : fromTeacher.engagementDomainScores,
-      engagementItemScores: !_isEmptyMap(toTeacher.engagementItemScores)
+      engagementItemScores: !isEmptyMap(toTeacher.engagementItemScores)
           ? toTeacher.engagementItemScores
           : fromTeacher.engagementItemScores,
-      engagementItemNotes: !_isEmptyMap(toTeacher.engagementItemNotes)
+      engagementItemNotes: !isEmptyMap(toTeacher.engagementItemNotes)
           ? toTeacher.engagementItemNotes
           : fromTeacher.engagementItemNotes,
       engagementNote: toTeacher.engagementNote ?? fromTeacher.engagementNote,
-      roles: !_isEmptyList(toTeacher.roles) ? toTeacher.roles : fromTeacher.roles,
+      roles: !isEmptyList(toTeacher.roles) ? toTeacher.roles : fromTeacher.roles,
       lastInteractionDate:
           toTeacher.lastInteractionDate ?? fromTeacher.lastInteractionDate,
+      mobilePhone: (toTeacher.mobilePhone != null && toTeacher.mobilePhone!.isNotEmpty)
+          ? toTeacher.mobilePhone
+          : fromTeacher.mobilePhone,
     );
 
     await toRef.update(merged.toMap());
@@ -493,6 +497,35 @@ class FirestoreService {
         .set(settings.toMap());
   }
 
+  /// בודק אם ניתן להשתמש ב-AI (לא חרגנו מהמכסה החודשית).
+  /// מחזיר (יכול להשתמש, הודעת שגיאה אם לא).
+  Future<(bool canUse, String? errorMessage)> canUseGemini() async {
+    final settings = await getManagerSettings();
+    final monthKey =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    final count = settings.geminiUsageMonth == monthKey
+        ? settings.geminiUsageCount
+        : 0;
+    if (count >= settings.geminiUsageLimitPerMonth) {
+      return (false, 'הגעת למכסת השימוש החודשית (${settings.geminiUsageLimitPerMonth})');
+    }
+    return (true, null);
+  }
+
+  /// רושם שימוש ב-AI ומעדכן את הספירה.
+  Future<void> recordGeminiUsage() async {
+    final settings = await getManagerSettings();
+    final monthKey =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+    final count = settings.geminiUsageMonth == monthKey
+        ? settings.geminiUsageCount + 1
+        : 1;
+    await updateManagerSettings(settings.copyWith(
+      geminiUsageMonth: monthKey,
+      geminiUsageCount: count,
+    ));
+  }
+
   // ========== מאגר פעולות מומלצות (למידה הדדית) ==========
   static const String _recommendedActionsCollection = 'recommended_actions';
 
@@ -603,6 +636,158 @@ class FirestoreService {
       'text': text.trim(),
       'createdAt': DateTime.now().toIso8601String(),
     });
+  }
+
+  // ========== שאלונים חיצוניים ==========
+  static const String _externalSurveysCollection = 'external_surveys';
+
+  /// יצירת שאלון חיצוני חדש
+  Future<String> createExternalSurvey(ExternalSurvey survey) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    final docRef = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection(_externalSurveysCollection)
+        .add(survey.toMap());
+
+    return docRef.id;
+  }
+
+  /// עדכון שאלון חיצוני קיים
+  Future<void> updateExternalSurvey(ExternalSurvey survey) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection(_externalSurveysCollection)
+        .doc(survey.id)
+        .update(survey.toMap());
+  }
+
+  /// מחיקת שאלון חיצוני
+  Future<void> deleteExternalSurvey(String surveyId) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection(_externalSurveysCollection)
+        .doc(surveyId)
+        .delete();
+  }
+
+  /// קבלת רשימת כל השאלונים החיצוניים של בית הספר
+  Stream<List<ExternalSurvey>> getExternalSurveysStream() {
+    if (_currentUserId == null) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection(_externalSurveysCollection)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ExternalSurvey.fromMap(doc.id, doc.data()))
+          .toList();
+    });
+  }
+
+  /// קבלת שאלון חיצוני ספציפי
+  Future<ExternalSurvey?> getExternalSurvey(String surveyId) async {
+    if (_currentUserId == null) return null;
+
+    final doc = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection(_externalSurveysCollection)
+        .doc(surveyId)
+        .get();
+
+    if (doc.exists && doc.data() != null) {
+      return ExternalSurvey.fromMap(doc.id, doc.data()!);
+    }
+    return null;
+  }
+
+  /// יצירת או קבלת קישור לשאלון חיצוני
+  Future<String> getExternalSurveyLink(String surveyId) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    final survey = await getExternalSurvey(surveyId);
+    if (survey == null) throw Exception('שאלון לא נמצא');
+
+    // אם אין טוקן, יוצר אחד
+    String token = survey.token ?? '';
+    if (token.isEmpty) {
+      final random = Random.secure();
+      final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+      token = base64Url.encode(bytes).replaceAll('=', '');
+      final updatedSurvey = survey.copyWith(token: token);
+      await updateExternalSurvey(updatedSurvey);
+    }
+
+    const baseUrl = 'https://shimur.web.app';
+    // s = schoolId, surveyId = מזהה השאלון, t = טוקן
+    return '$baseUrl/form.html?s=$_currentUserId&surveyId=$surveyId&t=$token';
+  }
+
+  /// עדכון תשובות של מורה לשאלון חיצוני
+  Future<void> updateTeacherExternalSurveyResponse({
+    required String teacherId,
+    required String surveyInstanceId,
+    required Map<String, dynamic> responses,
+  }) async {
+    if (_currentUserId == null) throw Exception('לא מחובר');
+
+    final teacherRef = _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .doc(teacherId);
+
+    final teacherDoc = await teacherRef.get();
+    if (!teacherDoc.exists) {
+      throw Exception('מורה לא נמצא');
+    }
+
+    final teacher = Teacher.fromMap(teacherDoc.id, teacherDoc.data()!);
+    final updatedExternalSurveys = Map<String, Map<String, dynamic>>.from(
+        teacher.externalSurveys);
+    updatedExternalSurveys[surveyInstanceId] = responses;
+
+    await teacherRef.update({
+      'externalSurveys': updatedExternalSurveys,
+    });
+  }
+
+  /// חיפוש מורה לפי שם (לשימוש בטופס הווב)
+  Future<Teacher?> findTeacherByName(String name) async {
+    if (_currentUserId == null) return null;
+
+    // נרמול שם לחיפוש (הסרת רווחים מיותרים, טרימינג)
+    final normalizedName = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    for (var doc in teachersSnapshot.docs) {
+      final teacher = Teacher.fromMap(doc.id, doc.data());
+      final teacherNormalizedName =
+          teacher.name.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (teacherNormalizedName == normalizedName) {
+        return teacher;
+      }
+    }
+
+    return null;
   }
 }
 

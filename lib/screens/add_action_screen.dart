@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart' hide Action;
-import 'package:material_hebrew_date_picker/material_hebrew_date_picker.dart';
 import '../models/action.dart';
+import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../services/gemini_service.dart';
 import '../widgets/hebrew_gregorian_date.dart';
 
 class AddActionScreen extends StatefulWidget {
   final String teacherId;
   /// אופציונלי: סוג פעולה מוצע (למשל מסיכום שבוע)
   final String? suggestedType;
+  /// אופציונלי: מורה – לשימוש ב-AI (הצע ניסוח)
+  final Teacher? teacher;
 
   const AddActionScreen({
-    Key? key,
+    super.key,
     required this.teacherId,
     this.suggestedType,
-  }) : super(key: key);
+    this.teacher,
+  });
 
   @override
   State<AddActionScreen> createState() => _AddActionScreenState();
 }
-
-/// בחירת תאריך: צ'יפ או תאריך ספציפי
-enum _DateChoice { none, thisWeek, thisMonth, specific }
 
 class _AddActionScreenState extends State<AddActionScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -28,61 +29,12 @@ class _AddActionScreenState extends State<AddActionScreen> {
   final _firestoreService = FirestoreService();
   late String _selectedType;
   DateTime? _selectedDate;
-  _DateChoice _dateChoice = _DateChoice.specific;
   bool _isCompleted = false;
   bool _isLoading = false;
-  bool _addToRecommended = false;
-  bool _shareAnonymously = true;
+  bool _suggestingDraft = false;
 
-  /// סוף השבוע הנוכחי (שבת)
-  static DateTime _endOfThisWeek() {
-    final now = DateTime.now();
-    final daysToSaturday = (6 - now.weekday + 7) % 7;
-    final saturday = now.add(Duration(days: daysToSaturday));
-    return DateTime(saturday.year, saturday.month, saturday.day);
-  }
-
-  /// סוף החודש הנוכחי
-  static DateTime _endOfThisMonth() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month + 1, 0);
-  }
-
-  Widget _buildDateChip(String label, _DateChoice choice) {
-    final selected = _dateChoice == choice;
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (v) {
-        setState(() {
-          _dateChoice = choice;
-          if (choice == _DateChoice.thisWeek) {
-            _selectedDate = _endOfThisWeek();
-          } else if (choice == _DateChoice.thisMonth) {
-            _selectedDate = _endOfThisMonth();
-          } else if (choice == _DateChoice.none) {
-            _selectedDate = null;
-          }
-        });
-      },
-      selectedColor: const Color(0xFF11a0db).withValues(alpha: 0.3),
-      checkmarkColor: const Color(0xFF11a0db),
-    );
-  }
-
-  /// פותח בורר תאריך עברי (לוח עברי בתוך החלונית).
-  static Future<DateTime?> _showHebrewAwareDatePicker({
-    required BuildContext context,
-    required DateTime initialDate,
-  }) {
-    return showMaterialHebrewDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      hebrewFormat: true,
-    );
-  }
+  bool get _canSuggestDraft =>
+      _selectedType.contains('הוקרה') || _selectedType.contains('מילה');
 
   final List<String> _actionTypes = [
     'שיחה אישית - הקשבה ותמיכה',
@@ -98,6 +50,87 @@ class _AddActionScreenState extends State<AddActionScreen> {
     'ציון יום הולדת/אירוע אישי',
     'אחר',
   ];
+
+  Future<void> _showAiActionSuggestions() async {
+    Teacher? teacher = widget.teacher;
+    if (teacher == null) {
+      teacher = await _firestoreService.getTeacher(widget.teacherId);
+    }
+    if (teacher == null) return;
+
+    final (canUse, errorMsg) = await _firestoreService.canUseGemini();
+    if (!canUse) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg ?? 'לא ניתן להשתמש ב-AI')),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _AiActionSuggestionsSheet(
+        teacher: teacher!,
+        firestoreService: _firestoreService,
+        onSelect: (suggestion) {
+          Navigator.pop(ctx);
+          if (_actionTypes.contains(suggestion)) {
+            setState(() => _selectedType = suggestion);
+          } else {
+            setState(() {
+              _selectedType = 'אחר';
+              _notesController.text = suggestion;
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _suggestDraft() async {
+    Teacher? teacher = widget.teacher;
+    if (teacher == null) {
+      teacher = await _firestoreService.getTeacher(widget.teacherId);
+    }
+    if (teacher == null) return;
+
+    final (canUse, errorMsg) = await _firestoreService.canUseGemini();
+    if (!canUse) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg ?? 'לא ניתן להשתמש ב-AI')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _suggestingDraft = true);
+    try {
+      final drafts = await GeminiService.generateMessageDrafts(
+        teacher: teacher,
+      );
+      await _firestoreService.recordGeminiUsage();
+      if (mounted && drafts != null && drafts.isNotEmpty) {
+        _notesController.text = drafts.first;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('נוסח הודעת הוקרה הוכנס')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _suggestingDraft = false);
+    }
+  }
 
   @override
   void initState() {
@@ -122,10 +155,9 @@ class _AddActionScreenState extends State<AddActionScreen> {
   }
 
   Future<void> _saveAction() async {
-    final effectiveDate = _dateChoice == _DateChoice.none ? null : _selectedDate;
-    if (effectiveDate == null && _dateChoice != _DateChoice.none) {
+    if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('נא לבחור תאריך או לסמן "ללא תאריך"')),
+        const SnackBar(content: Text('נא לבחור תאריך')),
       );
       return;
     }
@@ -136,7 +168,7 @@ class _AddActionScreenState extends State<AddActionScreen> {
       final action = Action(
         id: '', // יווצר אוטומטית
         type: _selectedType,
-        date: effectiveDate,
+        date: _selectedDate!,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -146,31 +178,12 @@ class _AddActionScreenState extends State<AddActionScreen> {
 
       await _firestoreService.addAction(widget.teacherId, action);
 
-      if (_addToRecommended && _selectedType.trim().isNotEmpty) {
-        try {
-          await _firestoreService.addRecommendedAction(
-            type: _selectedType.trim(),
-            isAnonymous: _shareAnonymously,
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('הפעולה נשמרה וגם נוספה למאגר המומלצות')),
-            );
-          }
-        } catch (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('הפעולה נשמרה; הוספה למאגר נכשלה')),
-            );
-          }
-        }
-      } else if (mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('הפעולה נשמרה בהצלחה!')),
         );
+        Navigator.pop(context);
       }
-      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -201,16 +214,29 @@ class _AddActionScreenState extends State<AddActionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'סוג פעולה *',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'סוג פעולה *',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _isLoading || _suggestingDraft
+                          ? null
+                          : _showAiActionSuggestions,
+                      icon: const Icon(Icons.auto_awesome, size: 20),
+                      label: const Text('המלצות לפי AI'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _selectedType,
+                  initialValue: _selectedType,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.category),
                     border: OutlineInputBorder(
@@ -240,27 +266,18 @@ class _AddActionScreenState extends State<AddActionScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildDateChip('בשבוע הקרוב', _DateChoice.thisWeek),
-                    _buildDateChip('בחודש הקרוב', _DateChoice.thisMonth),
-                    _buildDateChip('ללא תאריך', _DateChoice.none),
-                  ],
-                ),
-                const SizedBox(height: 12),
                 InkWell(
                   onTap: () async {
-                    final date = await _showHebrewAwareDatePicker(
+                    final date = await showDatePicker(
                       context: context,
                       initialDate: _selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(
+                        const Duration(days: 365),
+                      ),
                     );
                     if (date != null) {
-                      setState(() {
-                        _dateChoice = _DateChoice.specific;
-                        _selectedDate = date;
-                      });
+                      setState(() => _selectedDate = date);
                     }
                   },
                   child: Container(
@@ -268,25 +285,18 @@ class _AddActionScreenState extends State<AddActionScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _dateChoice == _DateChoice.specific && _selectedDate != null
-                            ? const Color(0xFF11a0db)
-                            : Colors.grey[300]!,
-                      ),
+                      border: Border.all(color: Colors.grey[300]!),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.calendar_today),
                         const SizedBox(width: 12),
-                        if (_dateChoice == _DateChoice.none)
+                        if (_selectedDate == null)
                           Text(
-                            'ללא תאריך',
-                            style: TextStyle(color: Colors.grey[600]),
-                          )
-                        else if (_selectedDate == null)
-                          Text(
-                            'בחר תאריך ספציפי',
-                            style: TextStyle(color: Colors.grey[600]),
+                            'בחר תאריך',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                            ),
                           )
                         else
                           HebrewGregorianDateText(
@@ -307,6 +317,24 @@ class _AddActionScreenState extends State<AddActionScreen> {
                     ),
                     filled: true,
                     fillColor: Colors.white,
+                    suffixIcon: _canSuggestDraft
+                        ? IconButton(
+                            icon: _suggestingDraft
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.auto_awesome),
+                            tooltip: 'הצע ניסוח מותאם',
+                            onPressed:
+                                (_isLoading || _suggestingDraft)
+                                    ? null
+                                    : _suggestDraft,
+                          )
+                        : null,
                   ),
                   maxLines: 3,
                 ),
@@ -319,35 +347,6 @@ class _AddActionScreenState extends State<AddActionScreen> {
                   },
                   activeColor: const Color(0xFF11a0db),
                 ),
-                const SizedBox(height: 8),
-                const Divider(),
-                const Text(
-                  'למידה הדדית – שתף עם מנהלים אחרים',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                CheckboxListTile(
-                  title: const Text('הוסף גם למאגר פעולות מומלצות'),
-                  subtitle: const Text(
-                    'מנהלים אחרים יוכלו לראות, לדרג ולהתנסות בפעולה',
-                  ),
-                  value: _addToRecommended,
-                  onChanged: (value) {
-                    setState(() => _addToRecommended = value ?? false);
-                  },
-                  activeColor: const Color(0xFF11a0db),
-                ),
-                if (_addToRecommended)
-                  CheckboxListTile(
-                    title: const Text('שתף באנונימיות'),
-                    value: _shareAnonymously,
-                    onChanged: (value) {
-                      setState(() => _shareAnonymously = value ?? true);
-                    },
-                    activeColor: const Color(0xFF11a0db),
-                  ),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 50,
@@ -377,6 +376,122 @@ class _AddActionScreenState extends State<AddActionScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// גיליון המלצות פעולות לפי AI
+class _AiActionSuggestionsSheet extends StatefulWidget {
+  final Teacher teacher;
+  final FirestoreService firestoreService;
+  final void Function(String) onSelect;
+
+  const _AiActionSuggestionsSheet({
+    required this.teacher,
+    required this.firestoreService,
+    required this.onSelect,
+  });
+
+  @override
+  State<_AiActionSuggestionsSheet> createState() =>
+      _AiActionSuggestionsSheetState();
+}
+
+class _AiActionSuggestionsSheetState extends State<_AiActionSuggestionsSheet> {
+  List<String>? _suggestions;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final suggestions = await GeminiService.generateActionSuggestions(
+        teacher: widget.teacher,
+      );
+      await widget.firestoreService.recordGeminiUsage();
+      if (mounted) {
+        setState(() {
+          _suggestions = suggestions;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'שגיאה: $e';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'המלצות פעולות ל־${widget.teacher.name}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_error != null)
+                Text(_error!, style: TextStyle(color: Colors.red[700]))
+              else if (_suggestions != null && _suggestions!.isNotEmpty)
+                ..._suggestions!.map((text) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.lightbulb_outline),
+                        title: Text(text),
+                        onTap: () => widget.onSelect(text),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        tileColor: Colors.grey[100],
+                      ),
+                    ))
+              else
+                const Text('לא נוצרו המלצות. נסי שוב.'),
+            ],
           ),
         ),
       ),

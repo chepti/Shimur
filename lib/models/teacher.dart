@@ -39,6 +39,12 @@ class Teacher {
   final DateTime? lastInteractionDate;
   /// טוקן למילוי טופס חיצוני – הקישור שמנהל שולח למורה
   final String? formToken;
+  /// טלפון נייד
+  final String? mobilePhone;
+  /// תשובות לשאלונים חיצוניים שהמנהל יצר
+  /// מפתח = surveyInstanceId (למשל "2024-חנוכה-אקלים")
+  /// ערך = מפה של תשובות: { "q1": 5, "q2": "תשובה טקסט", ... }
+  final Map<String, Map<String, dynamic>> externalSurveys;
 
   Teacher({
     required this.id,
@@ -71,6 +77,8 @@ class Teacher {
     this.roles = const [],
     this.lastInteractionDate,
     this.formToken,
+    this.mobilePhone,
+    this.externalSurveys = const {},
   });
 
   Map<String, dynamic> toMap() {
@@ -105,6 +113,8 @@ class Teacher {
       'lastInteractionDate':
           lastInteractionDate?.toIso8601String(),
       'formToken': formToken,
+      'mobilePhone': mobilePhone,
+      'externalSurveys': externalSurveys,
     };
   }
 
@@ -164,6 +174,17 @@ class Teacher {
           ? DateTime.parse(map['lastInteractionDate'])
           : null,
       formToken: map['formToken'] as String?,
+      mobilePhone: map['mobilePhone'] as String?,
+      externalSurveys: map['externalSurveys'] != null
+          ? Map<String, Map<String, dynamic>>.from(
+              (map['externalSurveys'] as Map).map(
+                (k, v) => MapEntry(
+                  k.toString(),
+                  Map<String, dynamic>.from(v as Map),
+                ),
+              ),
+            )
+          : const {},
     );
   }
 
@@ -196,6 +217,8 @@ class Teacher {
     List<String>? roles,
     DateTime? lastInteractionDate,
     String? formToken,
+    String? mobilePhone,
+    Map<String, Map<String, dynamic>>? externalSurveys,
   }) {
     return Teacher(
       id: id,
@@ -231,6 +254,8 @@ class Teacher {
       roles: roles ?? this.roles,
       lastInteractionDate: lastInteractionDate ?? this.lastInteractionDate,
       formToken: formToken ?? this.formToken,
+      mobilePhone: mobilePhone ?? this.mobilePhone,
+      externalSurveys: externalSurveys ?? this.externalSurveys,
     );
   }
 }

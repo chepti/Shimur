@@ -7,7 +7,7 @@ import 'teacher_details_screen.dart';
 
 /// מסך דוגמא: התראה לתחילת שבוע – פגישות מומלצות, מילים טובות, העתקה למזכירה, תובנות.
 class WeeklyStartNotificationScreen extends StatefulWidget {
-  const WeeklyStartNotificationScreen({Key? key}) : super(key: key);
+  const WeeklyStartNotificationScreen({super.key});
 
   @override
   State<WeeklyStartNotificationScreen> createState() =>

@@ -228,9 +228,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(width: 20),
                 // לוגו מיושר שמאלה עם עיפרון להעלאת תמונה – יופיע גם בשאלון
-                GestureDetector(
-                  onTap: _logoUploading ? null : _pickAndUploadLogo,
-                  child: Stack(
+                MouseRegion(
+                  cursor: _logoUploading ? SystemMouseCursors.basic : SystemMouseCursors.click,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _logoUploading ? null : _pickAndUploadLogo,
+                    child: Stack(
                     alignment: Alignment.center,
                     children: [
                       Container(
@@ -285,32 +288,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Positioned(
                           bottom: 0,
                           right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: _AccentGreen,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _logoUploading ? null : _pickAndUploadLogo,
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _AccentGreen,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                                child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                              ),
                             ),
-                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
                           ),
                         ),
                     ],
                   ),
                 ),
+              ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'לוגו בית הספר – יופיע בראש טופס השאלון',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
+            Tooltip(
+              message: 'לוגו בית הספר – יופיע בראש טופס השאלון',
+              child: Icon(Icons.info_outline, size: 18, color: Colors.grey[500]),
             ),
             if (_schoolLogoUrl != null) ...[
               const SizedBox(height: 8),
@@ -328,15 +338,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickAndUploadLogo() async {
-    final picker = ImagePicker();
-    final xfile = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      imageQuality: 85,
-    );
-    if (xfile == null || !mounted) return;
+    if (_logoUploading || !mounted) return;
     setState(() => _logoUploading = true);
     try {
+      final picker = ImagePicker();
+      final xfile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        imageQuality: 85,
+      );
+      if (xfile == null || !mounted) {
+        setState(() => _logoUploading = false);
+        return;
+      }
       final bytes = await xfile.readAsBytes();
       final contentType = xfile.mimeType ?? 'image/jpeg';
       final url = await _firestoreService.uploadSchoolLogo(bytes, contentType);
@@ -354,9 +368,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() => _logoUploading = false);
         debugPrint('שגיאה בהעלאת לוגו: $e');
         debugPrint('Stack trace: $st');
+        final msg = e.toString().contains('BLOCKED') || e.toString().contains('blocked')
+            ? 'לא ניתן לפתוח את גלריית התמונות. נסה לכבות חוסם פרסומות או להשתמש בדפדפן אחר.'
+            : 'שגיאה בהעלאת לוגו: $e';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('שגיאה בהעלאת לוגו: $e'),
+            content: Text(msg),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -494,8 +511,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
+      margin: const EdgeInsets.only(bottom: 4),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

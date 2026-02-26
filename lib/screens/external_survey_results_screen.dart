@@ -290,7 +290,7 @@ class _SurveyDashboardTab extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 200,
+              height: 220,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
@@ -333,9 +333,30 @@ class _SurveyDashboardTab extends StatelessWidget {
                           final i = v.toInt();
                           if (i >= 0 && i < 6) {
                             final score = i + 1;
-                            final count = distribution[score] ?? 0;
                             return Padding(
                               padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                '$score',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 20,
+                        getTitlesWidget: (v, meta) {
+                          final i = v.toInt();
+                          if (i >= 0 && i < 6) {
+                            final score = i + 1;
+                            final count = distribution[score] ?? 0;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
                               child: Text(
                                 '$count',
                                 style: TextStyle(
@@ -350,8 +371,6 @@ class _SurveyDashboardTab extends StatelessWidget {
                         },
                       ),
                     ),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   gridData: FlGridData(
                     show: true,
@@ -655,84 +674,97 @@ class _SurveyDashboardTab extends StatelessWidget {
     String questionText,
     List<MapEntry<String, List<String>>> sentencesWithTeachers,
   ) {
+    const accentOrange = Color(0xFFFAA41A);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white.withValues(alpha: 0.95),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        minChildSize: 0.3,
-        maxChildSize: 0.85,
-        expand: false,
-        builder: (_, controller) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                questionText,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.right,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'משפטים מהתשובות',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.right,
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  controller: controller,
-                  itemCount: sentencesWithTeachers.length,
-                  itemBuilder: (_, i) {
-                    final entry = sentencesWithTeachers[i];
-                    final names = entry.value.join(', ');
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        textDirection: TextDirection.rtl,
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                entry.key,
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(fontSize: 14),
-                              ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Theme(
+          data: Theme.of(ctx).copyWith(
+            scrollbarTheme: ScrollbarThemeData(
+              thumbColor: WidgetStateProperty.all(accentOrange),
+              trackColor: WidgetStateProperty.all(accentOrange.withValues(alpha: 0.2)),
+              thickness: WidgetStateProperty.all(8),
+              radius: const Radius.circular(4),
+            ),
+          ),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.4,
+            maxChildSize: 0.92,
+            expand: false,
+            builder: (_, controller) => Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    questionText,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'משפטים מהתשובות',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Scrollbar(
+                      thumbVisibility: true,
+                      controller: controller,
+                      child: ListView.builder(
+                        controller: controller,
+                        itemCount: sentencesWithTeachers.length,
+                        itemBuilder: (_, i) {
+                          final entry = sentencesWithTeachers[i];
+                          final names = entry.value.join(', ');
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      entry.key,
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                SizedBox(
+                                  width: 100,
+                                  child: Text(
+                                    names,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              names,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

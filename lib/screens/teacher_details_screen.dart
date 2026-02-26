@@ -9,7 +9,6 @@ import '../widgets/hebrew_gregorian_date.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
 import 'engagement_survey_screen.dart';
-import 'external_survey_results_screen.dart';
 import '../models/external_survey.dart';
 
 class TeacherDetailsScreen extends StatefulWidget {
@@ -465,7 +464,9 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                                       .map(
                                         (e) => _EngagementScoreChip(
                                           label: _mapDomainLabel(e.key),
+                                          domainKey: e.key,
                                           score: e.value,
+                                          teacher: teacher,
                                           maxScore: 6,
                                         ),
                                       )
@@ -565,17 +566,11 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                                       ),
                                       label: Text(survey.title),
                                       onPressed: hasResponse
-                                          ? () {
-                                              Navigator.push(
+                                          ? () => _showExternalSurveyAnswersSheet(
                                                 context,
-                                                MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      ExternalSurveyResultsScreen(
-                                                    surveyId: survey.id,
-                                                  ),
-                                                ),
-                                              );
-                                            }
+                                                teacher,
+                                                survey,
+                                              )
                                           : null,
                                       backgroundColor: hasResponse
                                           ? const Color(0xFFE8F5E9)
@@ -937,6 +932,109 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     }
   }
 
+  void _showExternalSurveyAnswersSheet(
+    BuildContext context,
+    Teacher teacher,
+    ExternalSurvey survey,
+  ) {
+    final responses = teacher.externalSurveys[survey.id];
+    if (responses == null || responses.isEmpty) return;
+
+    // רק שאלות ייחודיות (לא Q12) – המפתחות ב-externalSurveys הם תמיד מהשאלות המותאמות
+    final q12Keys = {'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10', 'q11', 'q12'};
+    final questionMap = {for (final q in survey.questions) q.id: q};
+    final items = <({String id, String text, dynamic value})>[];
+    for (final e in responses.entries) {
+      if (q12Keys.contains(e.key)) continue;
+      final q = questionMap[e.key];
+      if (q != null) items.add((id: e.key, text: q.text, value: e.value));
+    }
+    if (items.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white.withValues(alpha: 0.97),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.25,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (_, scrollController) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${survey.title} – תשובות המורה',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      shrinkWrap: true,
+                      children: items.map((item) {
+                        final val = item.value;
+                        final display = val is List
+                            ? val.join(', ')
+                            : val?.toString() ?? '-';
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.text,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                display,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showEngagementDetails(BuildContext context, Teacher teacher) {
     showModalBottomSheet(
       context: context,
@@ -1021,15 +1119,19 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   }
 }
 
-/// תיבת מדד מעורבות – קו מסגרת עליון צבעוני בהתאם לציון
+/// תיבת מדד מעורבות – פס עליון באורך יחסי לציון, לחיצה פותחת חלונית תשובות
 class _EngagementScoreChip extends StatelessWidget {
   final String label;
+  final String domainKey;
   final int score;
   final int maxScore;
+  final Teacher teacher;
 
   const _EngagementScoreChip({
     required this.label,
+    required this.domainKey,
     required this.score,
+    required this.teacher,
     this.maxScore = 6,
   });
 
@@ -1042,28 +1144,219 @@ class _EngagementScoreChip extends StatelessWidget {
     return const Color(0xFFAC2B31);                   // אדום כהה
   }
 
+  static const _domainItems = {
+    'basic_needs': ['q1', 'q2'],
+    'individual_contribution': ['q3', 'q4'],
+    'team_belonging': ['q5', 'q6', 'q7', 'q8', 'q9', 'q10'],
+    'personal_growth': ['q11', 'q12'],
+  };
+
+  static const _q12Questions = [
+    'אני יודע/ת מה מצפים ממני בעבודה',
+    'יש לי את החומרים והציוד שאני צריך/ה כדי לעשות את עבודתי כמו שצריך',
+    'בעבודה, יש לי הזדמנות לעשות את מה שאני הכי טוב/ה בו כל יום',
+    'בשבוע האחרון, קיבלתי הכרה או שבח על עבודה טובה',
+    'נראה שאכפת למנהל שלי, או מישהו בעבודה, ממני כאדם',
+    'יש מישהו בעבודה שמעודד את ההתפתחות שלי',
+    'בעבודה, נראה שהדעות שלי נחשבות',
+    'המשימה או המטרה של בית הספר גורמת לי להרגיש שהעבודה שלי חשובה',
+    'חברי הצוות שלי מחויבים לעשות עבודה איכותית',
+    'יש לי חבר/ה טוב/ה בעבודה',
+    'בחצי השנה האחרונה, מישהו בעבודה דיבר איתי על ההתקדמות שלי',
+    'השנה האחרונה, היו לי הזדמנויות בעבודה ללמוד ולצמוח',
+  ];
+
+  void _showDomainAnswersSheet(BuildContext context) {
+    final keys = _domainItems[domainKey] ?? [];
+    if (keys.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white.withValues(alpha: 0.97),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.25,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (_, scrollController) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$label – פירוט תשובות',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      shrinkWrap: true,
+                      children: [
+                        for (final key in keys)
+                          _buildAnswerRow(
+                            key: key,
+                            question: _q12Questions[int.parse(key.substring(1)) - 1],
+                            score: teacher.engagementItemScores[key],
+                            note: teacher.engagementItemNotes[key],
+                          ),
+                        if (teacher.engagementNote != null &&
+                            teacher.engagementNote!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            'הערה בעל פה:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            teacher.engagementNote!,
+                            style: TextStyle(color: Colors.grey[700]),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnswerRow({
+    required String key,
+    required String question,
+    required int? score,
+    required String? note,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            question,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              if (score != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _colorForScore(score).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$score/6',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _colorForScore(score),
+                    ),
+                  ),
+                ),
+              if (note != null && note.trim().isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '«$note»',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final accentColor = _colorForScore(score);
+    final barFraction = (score / maxScore).clamp(0.0, 1.0);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border(
-          top: BorderSide(color: accentColor, width: 3),
-          left: BorderSide(color: Colors.grey[300]!),
-          right: BorderSide(color: Colors.grey[300]!),
-          bottom: BorderSide(color: Colors.grey[300]!),
+    return InkWell(
+      onTap: () => _showDomainAnswersSheet(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
         ),
-      ),
-      child: Text(
-        '$label: $score/$maxScore',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[800],
-          fontSize: 13,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // פס עליון באורך יחסי לציון (3/6 = חצי אורך)
+            SizedBox(
+              height: 3,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final barWidth = constraints.maxWidth * barFraction;
+                  return Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      width: barWidth,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(2),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$label: $score/$maxScore',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+                fontSize: 13,
+              ),
+            ),
+          ],
         ),
       ),
     );

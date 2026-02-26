@@ -379,31 +379,63 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                           const SizedBox(height: 16),
                           const Divider(),
                           const SizedBox(height: 8),
-                          const Text(
-                            'סגנון מוטיבציה ותובנות מעורבות',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'סגנון מוטיבציה ותובנות מעורבות',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.help_outline, size: 20),
+                                color: Colors.grey[600],
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                onPressed: _showMotivationHelp,
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
-                          _buildInfoRow(
-                            Icons.psychology_alt_outlined,
-                            teacher.motivationStyles.isNotEmpty
-                                ? 'סגנונות בולטים: ${teacher.motivationStyles.map(_mapMotivationLabel).join(", ")}'
-                                : 'סגנונות בולטים: טרם סומנו',
-                          ),
+                          if (teacher.motivationStyles.isNotEmpty)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: teacher.motivationStyles.map((key) {
+                                final emoji = _motivationEmojis[key] ?? '';
+                                final label = _mapMotivationLabel(key);
+                                return Chip(
+                                  label: Text('$emoji $label'),
+                                  backgroundColor: const Color(0xFFFFF3EB),
+                                  side: const BorderSide(color: Color(0xFFF36F21), width: 1),
+                                );
+                              }).toList(),
+                            )
+                          else
+                            _buildInfoRow(
+                              Icons.psychology_alt_outlined,
+                              'סגנונות בולטים: טרם סומנו',
+                            ),
                           const SizedBox(height: 8),
                           if (teacher.engagementSignals.isNotEmpty)
                             Wrap(
                               spacing: 8,
-                              runSpacing: 4,
+                              runSpacing: 8,
                               children: teacher.engagementSignals
                                   .map(
-                                    (signal) => Chip(
-                                      label: Text(signal),
-                                      backgroundColor:
-                                          const Color(0xFFFFF3EB),
-                                    ),
+                                    (signal) {
+                                      final emoji = _engagementEmojis[signal] ?? '';
+                                      return Chip(
+                                        label: Text(emoji.isNotEmpty ? '$emoji $signal' : signal),
+                                        backgroundColor: const Color(0xFFFFF3EB),
+                                        side: const BorderSide(color: Color(0xFFF36F21), width: 1),
+                                      );
+                                    },
                                   )
                                   .toList(),
                             )
@@ -840,6 +872,22 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     );
   }
 
+  static const _motivationEmojis = {
+    'gregariousness': '👥',
+    'autonomy': '✈️',
+    'status': '⭐',
+    'inquisitiveness': '💡',
+    'power': '⚡',
+    'affiliation': '🎁',
+  };
+
+  static const _engagementEmojis = {
+    'צרכים בסיסיים': '🏠',
+    'תרומה אישית': '💪',
+    'שייכות לצוות': '👥',
+    'צמיחה אישית': '🌱',
+  };
+
   static String _mapMotivationLabel(String key) {
     switch (key) {
       case 'gregariousness':
@@ -859,6 +907,70 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
     }
   }
 
+  void _showMotivationHelp() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('6 סוגי המוטיבציה (ריק לאבוי)'),
+            content: const SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('👥 חברותיות – הצורך להשתייך לקבוצה, ליהנות מעבודה בצוות ומאינטראקציה חברתית.'),
+                  SizedBox(height: 8),
+                  Text('✈️ אוטונומיה – הצורך בעצמאות, שליטה על תהליכי העבודה וחופש פעולה.'),
+                  SizedBox(height: 8),
+                  Text('⭐ סטטוס – הצורך בהכרה ציבורית, מעמד, פרסים והערכה פומבית על הישגים.'),
+                  SizedBox(height: 8),
+                  Text('💡 סקרנות – הצורך ברכישת ידע חדש, חקירה, גילוי וצמיחה אינטלקטואלית.'),
+                  SizedBox(height: 8),
+                  Text('⚡ כוח – הצורך בהשפעה, סמכות, מנהיגות ונטילת חלק בקבלת החלטות.'),
+                  SizedBox(height: 8),
+                  Text('🎁 שייכות אישית – הצורך בקשר אישי חם, תמיכה רגשית, אמפתיה ועידוד מהמנהל.'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('סגור'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static const _moodEmojis = {
+    'bloom': '🌸',
+    'flow': '🌊',
+    'tense': '😰',
+    'disconnected': '😔',
+    'burned_out': '😫',
+  };
+
+  static Color _moodActiveColor(String key) {
+    switch (key) {
+      case 'bloom':
+        return const Color(0xFF40AE49);
+      case 'flow':
+        return const Color(0xFFB2D234);
+      case 'tense':
+        return const Color(0xFFFAA41A);
+      case 'disconnected':
+        return const Color(0xFFED1C24);
+      case 'burned_out':
+        return const Color(0xFFAC2B31);
+      default:
+        return Colors.grey;
+    }
+  }
+
   Widget _buildMoodStatusChips(Teacher teacher) {
     const options = {
       'bloom': 'מורה פורח',
@@ -873,19 +985,20 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
       runSpacing: 8,
       children: options.entries.map((entry) {
         final isSelected = teacher.moodStatus == entry.key;
-        final isAlert = entry.key == 'tense' ||
-            entry.key == 'disconnected' ||
-            entry.key == 'burned_out';
+        final emoji = _moodEmojis[entry.key] ?? '';
+        final activeColor = _moodActiveColor(entry.key);
 
         return ChoiceChip(
-          label: Text(entry.value),
+          label: Text('$emoji ${entry.value}'),
           selected: isSelected,
-          selectedColor:
-              isAlert ? const Color(0xFFFFE0E0) : const Color(0xFFE3F2FD),
+          selectedColor: activeColor.withOpacity(0.2),
+          backgroundColor: Colors.grey[50],
+          side: BorderSide(
+            color: isSelected ? activeColor : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
           labelStyle: TextStyle(
-            color: isAlert
-                ? (isSelected ? const Color(0xFFB71C1C) : Colors.red[700])
-                : (isSelected ? const Color(0xFF0D47A1) : Colors.black87),
+            color: isSelected ? activeColor : Colors.grey[700],
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
           onSelected: (selected) async {

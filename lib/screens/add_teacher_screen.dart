@@ -398,6 +398,31 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     );
   }
 
+  static const _moodEmojis = {
+    'bloom': '🌸',
+    'flow': '🌊',
+    'tense': '😰',
+    'disconnected': '😔',
+    'burned_out': '😫',
+  };
+
+  Color _moodActiveColor(String key) {
+    switch (key) {
+      case 'bloom':
+        return const Color(0xFF40AE49);
+      case 'flow':
+        return const Color(0xFFB2D234);
+      case 'tense':
+        return const Color(0xFFFAA41A);
+      case 'disconnected':
+        return const Color(0xFFED1C24);
+      case 'burned_out':
+        return const Color(0xFFAC2B31);
+      default:
+        return Colors.grey;
+    }
+  }
+
   List<Widget> _buildMoodStatusChips() {
     const options = {
       'bloom': 'פורח',
@@ -407,32 +432,21 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       'burned_out': 'שחוק',
     };
 
-    Color colorForMood(String key) {
-      switch (key) {
-        case 'bloom':
-          return const Color(0xFF40AE49);
-        case 'flow':
-          return const Color(0xFFB2D234);
-        case 'tense':
-          return const Color(0xFFFAA41A);
-        case 'disconnected':
-          return const Color(0xFFED1C24);
-        case 'burned_out':
-          return const Color(0xFFAC2B31);
-        default:
-          return Colors.grey;
-      }
-    }
-
     return options.entries.map((entry) {
       final isSelected = _selectedMoodStatus == entry.key;
-      final color = colorForMood(entry.key);
+      final emoji = _moodEmojis[entry.key] ?? '';
+      final activeColor = _moodActiveColor(entry.key);
       return ChoiceChip(
-        label: Text(entry.value),
+        label: Text('$emoji ${entry.value}'),
         selected: isSelected,
-        selectedColor: color.withOpacity(0.15),
+        selectedColor: activeColor.withOpacity(0.2),
+        backgroundColor: Colors.grey[50],
+        side: BorderSide(
+          color: isSelected ? activeColor : Colors.grey[300]!,
+          width: isSelected ? 2 : 1,
+        ),
         labelStyle: TextStyle(
-          color: isSelected ? color : Colors.grey[800],
+          color: isSelected ? activeColor : Colors.grey[700],
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
         ),
         onSelected: (selected) {
@@ -487,12 +501,21 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     return '${start.day}.${start.month}–${end.day}.${end.month}';
   }
 
+  static const _motivationEmojis = {
+    'gregariousness': '👥',
+    'autonomy': '✈️',
+    'status': '⭐',
+    'inquisitiveness': '💡',
+    'power': '⚡',
+    'affiliation': '🎁',
+  };
+
   Widget _buildMotivationTile({
     required String keyValue,
     required String title,
-    required IconData icon,
   }) {
     final isSelected = _selectedMotivationStyles.contains(keyValue);
+    final emoji = _motivationEmojis[keyValue] ?? '';
     return InkWell(
       onTap: () {
         setState(() {
@@ -519,16 +542,13 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? const Color(0xFFF36F21)
-                  : const Color(0xFF11a0db),
-            ),
-            const SizedBox(height: 8),
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 6),
             Text(
               title,
+              textAlign: TextAlign.center,
               style: TextStyle(
+                fontSize: 13,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               ),
             ),
@@ -547,39 +567,22 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       mainAxisSpacing: 8,
       childAspectRatio: 1.2,
       children: [
-        _buildMotivationTile(
-          keyValue: 'gregariousness',
-          title: 'חברותיות',
-          icon: Icons.chat_bubble_outline,
-        ),
-        _buildMotivationTile(
-          keyValue: 'autonomy',
-          title: 'אוטונומיה',
-          icon: Icons.flight_takeoff,
-        ),
-        _buildMotivationTile(
-          keyValue: 'status',
-          title: 'סטטוס',
-          icon: Icons.star_border,
-        ),
-        _buildMotivationTile(
-          keyValue: 'inquisitiveness',
-          title: 'סקרנות',
-          icon: Icons.lightbulb_outline,
-        ),
-        _buildMotivationTile(
-          keyValue: 'power',
-          title: 'כוח',
-          icon: Icons.bolt,
-        ),
-        _buildMotivationTile(
-          keyValue: 'affiliation',
-          title: 'שייכות אישית',
-          icon: Icons.card_giftcard,
-        ),
+        _buildMotivationTile(keyValue: 'gregariousness', title: 'חברותיות'),
+        _buildMotivationTile(keyValue: 'autonomy', title: 'אוטונומיה'),
+        _buildMotivationTile(keyValue: 'status', title: 'סטטוס'),
+        _buildMotivationTile(keyValue: 'inquisitiveness', title: 'סקרנות'),
+        _buildMotivationTile(keyValue: 'power', title: 'כוח'),
+        _buildMotivationTile(keyValue: 'affiliation', title: 'שייכות אישית'),
       ],
     );
   }
+
+  static const _engagementEmojis = {
+    'צרכים בסיסיים': '🏠',
+    'תרומה אישית': '💪',
+    'שייכות לצוות': '👥',
+    'צמיחה אישית': '🌱',
+  };
 
   List<Widget> _buildEngagementChips() {
     const options = [
@@ -590,19 +593,22 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     ];
     return options
         .map(
-          (label) => FilterChip(
-            label: Text(label),
-            selected: _selectedEngagementSignals.contains(label),
-            onSelected: (selected) {
-              setState(() {
-                if (selected) {
-                  _selectedEngagementSignals.add(label);
-                } else {
-                  _selectedEngagementSignals.remove(label);
-                }
-              });
-            },
-          ),
+          (label) {
+            final emoji = _engagementEmojis[label] ?? '';
+            return FilterChip(
+              label: Text('$emoji $label'),
+              selected: _selectedEngagementSignals.contains(label),
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedEngagementSignals.add(label);
+                  } else {
+                    _selectedEngagementSignals.remove(label);
+                  }
+                });
+              },
+            );
+          },
         )
         .toList();
   }
@@ -618,30 +624,19 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
             content: const SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    '• חברותיות – הצורך להשתייך לקבוצה, ליהנות מעבודה בצוות ומאינטראקציה חברתית.',
-                  ),
+                  Text('👥 חברותיות – הצורך להשתייך לקבוצה, ליהנות מעבודה בצוות ומאינטראקציה חברתית.'),
                   SizedBox(height: 8),
-                  Text(
-                    '• אוטונומיה – הצורך בעצמאות, שליטה על תהליכי העבודה וחופש פעולה.',
-                  ),
+                  Text('✈️ אוטונומיה – הצורך בעצמאות, שליטה על תהליכי העבודה וחופש פעולה.'),
                   SizedBox(height: 8),
-                  Text(
-                    '• סטטוס – הצורך בהכרה ציבורית, מעמד, פרסים והערכה פומבית על הישגים.',
-                  ),
+                  Text('⭐ סטטוס – הצורך בהכרה ציבורית, מעמד, פרסים והערכה פומבית על הישגים.'),
                   SizedBox(height: 8),
-                  Text(
-                    '• סקרנות – הצורך ברכישת ידע חדש, חקירה, גילוי וצמיחה אינטלקטואלית.',
-                  ),
+                  Text('💡 סקרנות – הצורך ברכישת ידע חדש, חקירה, גילוי וצמיחה אינטלקטואלית.'),
                   SizedBox(height: 8),
-                  Text(
-                    '• כוח – הצורך בהשפעה, סמכות, מנהיגות ונטילת חלק בקבלת החלטות.',
-                  ),
+                  Text('⚡ כוח – הצורך בהשפעה, סמכות, מנהיגות ונטילת חלק בקבלת החלטות.'),
                   SizedBox(height: 8),
-                  Text(
-                    '• שייכות אישית – הצורך בקשר אישי חם, תמיכה רגשית, אמפתיה ועידוד מהמנהל.',
-                  ),
+                  Text('🎁 שייכות אישית – הצורך בקשר אישי חם, תמיכה רגשית, אמפתיה ועידוד מהמנהל.'),
                 ],
               ),
             ),

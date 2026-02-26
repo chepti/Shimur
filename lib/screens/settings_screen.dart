@@ -32,6 +32,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _schoolLogoUrl;
   String? _managerName;
   bool _logoUploading = false;
+  final _managerNameController = TextEditingController();
+  final _managerNameFocusNode = FocusNode();
 
   static const List<MapEntry<int, String>> _weekdayNames = [
     MapEntry(1, 'שני'),
@@ -46,7 +48,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _managerNameFocusNode.addListener(() {
+      if (!_managerNameFocusNode.hasFocus) _saveManagerName();
+    });
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _managerNameFocusNode.removeListener(_saveManagerName);
+    _managerNameFocusNode.dispose();
+    _managerNameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -54,10 +67,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = await _firestoreService.getManagerSettings();
     final school = await _firestoreService.getSchool();
     if (mounted) {
+      _managerName = school?['managerName'] as String?;
+      _managerNameController.text = _managerName ?? '';
       setState(() {
         _settings = s;
         _schoolLogoUrl = school?['logoUrl'] as String?;
-        _managerName = school?['managerName'] as String?;
         _isLoading = false;
       });
     }
@@ -183,8 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       TextFormField(
-                        key: ValueKey('manager_${_managerName ?? ""}'),
-                        initialValue: _managerName ?? '',
+                        controller: _managerNameController,
                         decoration: InputDecoration(
                           labelText: 'שם המנהל/ת',
                           isDense: true,
@@ -196,21 +209,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             borderSide: const BorderSide(color: _AccentGreen, width: 2),
                           ),
                         ),
-                        onChanged: (v) async {
-                          final trimmed = v.trim();
-                          if (trimmed != _managerName) {
-                            try {
-                              await _firestoreService.updateSchoolManagerName(trimmed);
-                              if (mounted) setState(() => _managerName = trimmed);
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('שגיאה: $e')),
-                                );
-                              }
-                            }
-                          }
-                        },
+                        onEditingComplete: _saveManagerName,
+                        onSubmitted: (_) => _saveManagerName(),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -355,6 +355,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveManagerName() async {
+    FocusScope.of(context).unfocus();
+    final trimmed = _managerNameController.text.trim();
+    if (trimmed == _managerName) return;
+    try {
+      await _firestoreService.updateSchoolManagerName(trimmed);
+      if (mounted) {
+        setState(() => _managerName = trimmed);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('שם המנהל נשמר')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה בשמירה: $e'), backgroundColor: Colors.red),
         );
       }
     }

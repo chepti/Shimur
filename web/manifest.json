@@ -1,11 +1,11 @@
 {
-    "name": "shimur",
-    "short_name": "shimur",
+    "name": "טיפוח ההון האנושי",
+    "short_name": "טיפוח ההון האנושי",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "טיפוח ההון האנושי - אפליקציה למנהלי בתי ספר",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

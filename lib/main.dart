@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'config/allowed_users.dart';
+import 'config/auth_state.dart';
 import 'screens/login_screen.dart';
 import 'screens/teachers_list_screen.dart';
 import 'screens/tasks_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -71,10 +74,23 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData && snapshot.data != null) {
+        final user = snapshot.data;
+        if (user != null) {
+          if (isRestrictedToAllowedUsers && !isUserAllowed(user.uid)) {
+            AuthState.clear();
+            FirebaseAuth.instance.signOut();
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('אינך מורשה לגשת לאפליקציה')),
+              );
+            });
+            return const LoginScreen();
+          }
+          AuthState.setVerifiedUid(user.uid);
           return const MainNavigationScreen();
         }
 
+        AuthState.clear();
         return const LoginScreen();
       },
     );
@@ -90,6 +106,13 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // אתחול schoolFormToken – נדרש כדי שטופס השאלון החיצוני יעבוד
+    FirestoreService().ensureManagerSettingsWithFormToken();
+  }
 
   final List<Widget> _screens = [
     const TeachersListScreen(),

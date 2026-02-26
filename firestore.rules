@@ -8,16 +8,20 @@ service cloud.firestore {
       }
 
       // בדיקת טוקן לטופס החיצוני (ללא התחברות)
+      // settings/manager חייב להכיל schoolFormToken שתואם לטוקן בקישור
       function externalFormTokenValid() {
-        return
-          request.resource.data.formToken != null &&
-          request.resource.data.formToken ==
-            get(/databases/$(database)/documents
-                /schools/$(schoolId)/settings/manager).data.schoolFormToken;
+        let managerDoc = get(/databases/$(database)/documents
+            /schools/$(schoolId)/settings/manager);
+        return request.resource.data.formToken != null &&
+          managerDoc.data != null &&
+          managerDoc.data.schoolFormToken != null &&
+          request.resource.data.formToken == managerDoc.data.schoolFormToken;
       }
 
       // מנהל יכול לקרוא ולעדכן רק את בית הספר שלו
       allow read, write: if isManager();
+      // טופס חיצוני (form.html) קורא שם בית ספר ולוגו – מי שמחזיק בקישור יודע את schoolId בכל מקרה
+      allow read: if request.auth == null;
       
       // הגדרות מנהל (יעדים, כללים, נוטיפיקציות, דורשים טיפול)
       match /settings/{settingId} {
@@ -28,8 +32,15 @@ service cloud.firestore {
       match /teachers/{teacherId} {
         // מנהל מחובר – גישה מלאה למורה
         allow read, update, delete: if isManager();
-        // יצירת מורה חדש מטופס חיצוני (ללא התחברות)
-        allow create: if
+
+        // קריאת רשימת מורים מהטופס החיצוני (ללא התחברות).
+        // המשמעות: מי שמחזיק בקישור של בית הספר יכול לראות שמות מורים בלבד.
+        allow read: if request.auth == null || isManager();
+
+        // גישה מטופס חיצוני (ללא התחברות, על בסיס טוקן):
+        // - יצירת מורה חדש (הגרסה הישנה של הטופס)
+        // - עדכון מורה קיים (הגרסה החדשה – עדכון ציון מעורבות ושאלונים חיצוניים)
+        allow create, update: if
           request.auth == null &&
           externalFormTokenValid();
         
@@ -38,6 +49,17 @@ service cloud.firestore {
           // מנהל יכול לקרוא ולעדכן רק את הפעולות של המורים בבית הספר שלו
           allow read, write: if isManager();
         }
+      }
+
+      // שאלונים חיצוניים – נשמרים תחת /schools/{schoolId}/external_surveys/{surveyId}
+      // שימי לב: אנחנו כבר בתוך match /schools/{schoolId}, לכן אין צורך לכתוב שוב /schools/{schoolId}
+      match /external_surveys/{surveyId} {
+        // מנהל מחובר – קריאה/כתיבה מלאה
+        allow read, write: if isManager();
+        // טופס חיצוני (form.html) צריך לקרוא תצורת שאלון גם ללא התחברות
+        // אין לנו גישה לפרמטר ה-token בכללי האבטחה, ולכן קריאה פתוחה.
+        // בפועל, הקישור מופץ רק לצוות.
+        allow read: if request.auth == null;
       }
     }
 

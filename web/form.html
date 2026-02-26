@@ -16,9 +16,18 @@
       background: #f5f5f5;
       color: #333;
       direction: rtl;
+      text-align: right;
     }
     input, textarea, select, button {
       font-family: inherit;
+    }
+    /* יישור RTL ברור לכל שדות הטקסט והבחירה */
+    input[type="text"],
+    input[type="tel"],
+    textarea,
+    select {
+      direction: rtl;
+      text-align: right;
     }
     ::placeholder {
       font-family: inherit;
@@ -179,6 +188,15 @@
     .teacher-select-container {
       position: relative;
     }
+    .teacher-mode-option {
+      display: block;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .teacher-mode-option input {
+      margin-left: 8px;
+    }
     .loading-teachers {
       color: #666;
       font-size: 0.9rem;
@@ -216,7 +234,7 @@
 <body>
   <div class="container">
     <div class="logo-wrap">
-      <img src="https://i.imgur.com/9xCiffu.png" alt="חמ\"ד">
+      <img id="schoolLogo" src="https://i.imgur.com/9xCiffu.png" alt="לוגו בית הספר" style="max-height: 60px; object-fit: contain;">
     </div>
     <h1>שאלון מעורבות ומוטיבציה</h1>
     <p class="subtitle">מלא/י את השאלון – הנתונים יישלחו למנהל/ת בית הספר</p>
@@ -229,10 +247,23 @@
 
       <div class="section" id="teacher-section">
         <div class="section-title">בחר/י מורה</div>
-        <div class="teacher-select-container">
-          <select name="teacherId" id="teacherId" class="roles-input" required>
+        <div class="teacher-mode-toggle" style="margin-bottom: 12px;">
+          <label class="teacher-mode-option">
+            <input type="radio" name="teacherMode" value="select" checked>
+            <span>בחר/י מורה מהרשימה</span>
+          </label>
+          <label class="teacher-mode-option">
+            <input type="radio" name="teacherMode" value="new">
+            <span>הזן/י שם מורה חדש (בית ספר חדש במערכת)</span>
+          </label>
+        </div>
+        <div class="teacher-select-container" id="teacherSelectWrap">
+          <select name="teacherId" id="teacherId" class="roles-input">
             <option value="">טוען רשימת מורים...</option>
           </select>
+        </div>
+        <div class="teacher-new-container" id="teacherNewWrap" style="display: none;">
+          <input type="text" name="teacherNameNew" id="teacherNameNew" class="roles-input" placeholder="הזן/י את שם המורה">
         </div>
         <input type="hidden" name="teacherName" id="teacherName">
       </div>
@@ -344,11 +375,26 @@
       showErr('חסר קישור תקין. נא לבקש מהמנהל/ת קישור חדש.');
     } else {
       document.getElementById('token').value = token;
-      // טעינת רשימת מורים
+      loadSchoolLogo();
       loadTeachers();
-      // אם יש שאלון חיצוני, טעינה שלו
       if (surveyId) {
         loadExternalSurvey(surveyId);
+      }
+    }
+
+    async function loadSchoolLogo() {
+      try {
+        const schoolDoc = await db.collection('schools').doc(schoolId).get();
+        const logoUrl = schoolDoc.exists && schoolDoc.data() && schoolDoc.data().logoUrl;
+        // אל תדרוס לוגו של שאלון חיצוני אם כבר הוגדר
+        if (externalSurvey && externalSurvey.logoUrl) return;
+        const img = document.getElementById('schoolLogo');
+        if (img && logoUrl) {
+          img.src = logoUrl;
+          img.alt = 'לוגו בית הספר';
+        }
+      } catch (e) {
+        console.warn('לא ניתן לטעון לוגו:', e);
       }
     }
 
@@ -382,6 +428,17 @@
           const selectedTeacher = teachersList.find(t => t.id === selectedId);
           document.getElementById('teacherName').value = selectedTeacher ? selectedTeacher.name : '';
         });
+
+        // מעבר בין בחירה מרשימה להזנת שם חדש
+        document.querySelectorAll('input[name="teacherMode"]').forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            const isNew = e.target.value === 'new';
+            document.getElementById('teacherSelectWrap').style.display = isNew ? 'none' : 'block';
+            document.getElementById('teacherNewWrap').style.display = isNew ? 'block' : 'none';
+            selectEl.required = !isNew;
+            document.getElementById('teacherNameNew').required = isNew;
+          });
+        });
       } catch (err) {
         console.error('שגיאה בטעינת מורים:', err);
         showErr('שגיאה בטעינת רשימת המורים. נסי לרענן את הדף.');
@@ -410,8 +467,18 @@
           title: data.title || '',
           description: data.description || '',
           questions: data.questions || [],
-          includeEngagementSurvey: includeEngagement
+          includeEngagementSurvey: includeEngagement,
+          logoUrl: data.logoUrl || null
         };
+
+        // עדכון לוגו – לוגו השאלון גובר על לוגו בית הספר
+        if (externalSurvey.logoUrl) {
+          const img = document.getElementById('schoolLogo');
+          if (img) {
+            img.src = externalSurvey.logoUrl;
+            img.alt = 'לוגו השאלון';
+          }
+        }
 
         // אם השאלון לא כולל מעורבות – מסתירים את בלוק שאלון המעורבות ומעדכנים כותרת
         const engagementSection = document.getElementById('engagement-section');
@@ -441,16 +508,36 @@
               <label>${idx + 1}. ${q.text}</label>
               <div class="slider-row">
                 <span>1</span>
-                <input type="range" name="ext_${q.id}" min="1" max="6" value="3" ${q.required ? 'required' : ''}>
-                <span class="val">3</span>
+                <input type="range" name="ext_${q.id}" min="1" max="6" value="3" class="slider-default" data-touched="0" ${q.required ? 'required' : ''}>
+                <span class="val val-default">–</span>
                 <span>6</span>
               </div>
             `;
             const slider = div.querySelector('input[type="range"]');
             const valSpan = div.querySelector('.val');
+            let touched = false;
+            function updateSliderStyle() {
+              const isDefault = !touched;
+              slider.classList.toggle('slider-default', isDefault);
+              valSpan.classList.toggle('val-default', isDefault);
+              valSpan.textContent = isDefault ? '–' : slider.value;
+              slider.dataset.touched = touched ? '1' : '0';
+            }
             slider.addEventListener('input', () => {
+              touched = true;
               valSpan.textContent = slider.value;
+              updateSliderStyle();
             });
+            ['touchstart', 'mousedown'].forEach(ev => {
+              slider.addEventListener(ev, () => {
+                if (!touched) {
+                  touched = true;
+                  valSpan.textContent = slider.value;
+                  updateSliderStyle();
+                }
+              });
+            });
+            updateSliderStyle();
           } else if (q.type === 'multipleChoice' && q.options) {
             div.innerHTML = `<label>${idx + 1}. ${q.text}</label>`;
             q.options.forEach(opt => {
@@ -550,14 +637,42 @@
       btn.textContent = 'שולח...';
 
       const formData = new FormData(e.target);
-      const teacherId = formData.get('teacherId');
-      const teacherName = formData.get('teacherName') || '';
+      const teacherMode = formData.get('teacherMode') || 'select';
+      const teacherId = formData.get('teacherId') || '';
+      let teacherName = formData.get('teacherName') || '';
+      const teacherNameNew = (formData.get('teacherNameNew') || '').trim();
       
-      if (!teacherId) {
-        showErr('נא לבחור מורה מהרשימה.');
-        btn.textContent = originalText;
-        btn.disabled = false;
-        return;
+      // בדיקת שאלות סולם חובה בשאלון חיצוני – חייבות מגע אקטיבי
+      if (externalSurvey && externalSurvey.questions) {
+        for (const q of externalSurvey.questions) {
+          if (q.type === 'scale' && q.required) {
+            const sliderEl = document.querySelector(`input[name="ext_${q.id}"]`);
+            if (sliderEl && sliderEl.dataset.touched !== '1') {
+              showErr('נא לענות על כל השאלות – גרור את הסליידר לכל שאלת סולם.');
+              btn.textContent = originalText;
+              btn.disabled = false;
+              return;
+            }
+          }
+        }
+      }
+
+      const isNewTeacher = teacherMode === 'new';
+      if (isNewTeacher) {
+        if (!teacherNameNew) {
+          showErr('נא להזין את שם המורה.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+        teacherName = teacherNameNew;
+      } else {
+        if (!teacherId) {
+          showErr('נא לבחור מורה מהרשימה.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
       }
       
       const mobilePhone = (formData.get('mobilePhone') || '').trim() || null;
@@ -622,65 +737,90 @@
               if (values.length > 0) {
                 externalSurveyResponses[q.id] = values;
               }
+            } else if (q.type === 'scale') {
+              const sliderEl = document.querySelector(`input[name="${key}"]`);
+              if (sliderEl && sliderEl.dataset.touched === '1') {
+                const value = formData.get(key);
+                if (value) externalSurveyResponses[q.id] = parseInt(value, 10);
+              }
             } else {
               const value = formData.get(key);
               if (value && value.toString().trim()) {
-                if (q.type === 'scale') {
-                  externalSurveyResponses[q.id] = parseInt(value, 10);
-                } else {
-                  externalSurveyResponses[q.id] = value.toString().trim();
-                }
+                externalSurveyResponses[q.id] = value.toString().trim();
               }
             }
           });
         }
 
-        // עדכון מורה קיים (לא יצירת חדש)
-        const teacherRef = db
-          .collection('schools')
-          .doc(schoolId)
-          .collection('teachers')
-          .doc(teacherId);
+        const teachersCol = db.collection('schools').doc(schoolId).collection('teachers');
+        let teacherRef;
 
-        const teacherDoc = await teacherRef.get();
-        
-        if (!teacherDoc.exists) {
-          showErr('מורה לא נמצא במערכת. נא לפנות למנהל.');
-          btn.textContent = originalText;
-          btn.disabled = false;
-          return;
-        }
-
-        const existingData = teacherDoc.data();
-        const onlyExternalSurvey = externalSurvey && externalSurvey.includeEngagementSurvey === false;
-
-        if (onlyExternalSurvey) {
-          // שאלון בלי מעורבות – מעדכנים רק תשובות חיצוניות (ואופציונלית טלפון)
-          const existingExternalSurveys = existingData.externalSurveys || {};
+        if (isNewTeacher) {
+          // יצירת מורה חדש (בית ספר חדש במערכת)
+          const now = new Date().toISOString();
           const surveyInstanceId = surveyId || `default_${Date.now()}`;
-          existingExternalSurveys[surveyInstanceId] = externalSurveyResponses;
-          const updatePayload = { externalSurveys: existingExternalSurveys };
-          if (mobilePhone) updatePayload.mobilePhone = mobilePhone;
-          await teacherRef.update(updatePayload);
-        } else {
-          // שאלון עם מעורבות או קישור רגיל – עדכון מלא
-          const updateData = {
-            engagementDomainScores: domainScores,
-            engagementItemScores: payload.itemScores,
-            engagementItemNotes: payload.itemNotes,
-            engagementNote: payload.engagementNote,
-            motivationStyles: payload.motivationStyles,
-            roles: payload.roles,
+          const onlyExternalSurvey = externalSurvey && externalSurvey.includeEngagementSurvey === false;
+
+          const newTeacherData = {
+            name: teacherName,
+            seniorityYears: 0,
+            totalSeniorityYears: 0,
+            status: 'green',
+            createdAt: now,
             formToken: token,
+            motivationStyles: onlyExternalSurvey ? [] : payload.motivationStyles,
+            roles: onlyExternalSurvey ? [] : payload.roles,
+            engagementDomainScores: onlyExternalSurvey ? {} : domainScores,
+            engagementItemScores: onlyExternalSurvey ? {} : payload.itemScores,
+            engagementItemNotes: onlyExternalSurvey ? {} : payload.itemNotes,
+            engagementNote: onlyExternalSurvey ? null : payload.engagementNote,
+            externalSurveys: { [surveyInstanceId]: externalSurveyResponses },
           };
-          if (mobilePhone) updateData.mobilePhone = mobilePhone;
-          if (externalSurvey && Object.keys(externalSurveyResponses).length > 0) {
+          if (mobilePhone) newTeacherData.mobilePhone = mobilePhone;
+
+          const docRef = await teachersCol.add(newTeacherData);
+          teacherRef = docRef;
+        } else {
+          // עדכון מורה קיים
+          teacherRef = teachersCol.doc(teacherId);
+          const teacherDoc = await teacherRef.get();
+          
+          if (!teacherDoc.exists) {
+            showErr('מורה לא נמצא במערכת. נא לפנות למנהל.');
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
+          }
+
+          const existingData = teacherDoc.data();
+          const onlyExternalSurvey = externalSurvey && externalSurvey.includeEngagementSurvey === false;
+
+          if (onlyExternalSurvey) {
             const existingExternalSurveys = existingData.externalSurveys || {};
             const surveyInstanceId = surveyId || `default_${Date.now()}`;
             existingExternalSurveys[surveyInstanceId] = externalSurveyResponses;
-            updateData.externalSurveys = existingExternalSurveys;
+            const updatePayload = { externalSurveys: existingExternalSurveys };
+            if (mobilePhone) updatePayload.mobilePhone = mobilePhone;
+            await teacherRef.update(updatePayload);
+          } else {
+            const updateData = {
+              engagementDomainScores: domainScores,
+              engagementItemScores: payload.itemScores,
+              engagementItemNotes: payload.itemNotes,
+              engagementNote: payload.engagementNote,
+              motivationStyles: payload.motivationStyles,
+              roles: payload.roles,
+              formToken: token,
+            };
+            if (mobilePhone) updateData.mobilePhone = mobilePhone;
+            if (externalSurvey && Object.keys(externalSurveyResponses).length > 0) {
+              const existingExternalSurveys = existingData.externalSurveys || {};
+              const surveyInstanceId = surveyId || `default_${Date.now()}`;
+              existingExternalSurveys[surveyInstanceId] = externalSurveyResponses;
+              updateData.externalSurveys = existingExternalSurveys;
+            }
+            await teacherRef.update(updateData);
           }
-          await teacherRef.update(updateData);
         }
 
         showSuccess();

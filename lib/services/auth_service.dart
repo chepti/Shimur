@@ -8,6 +8,27 @@ class AuthService {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// מחכה עד שה-auth מוכן (לאחר התחברות עם custom token עלול להיות עיכוב).
+  Future<String?> ensureUserIdReady() async {
+    // ניסיון ראשון – אם כבר מחובר
+    if (_auth.currentUser != null) return _auth.currentUser!.uid;
+    // המתנה קצרה ו-retry (פתרון ל-Web שבו currentUser עלול להיות null לרגע)
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (_auth.currentUser != null) return _auth.currentUser!.uid;
+    }
+    // ניסיון אחרון דרך authStateChanges
+    try {
+      return await _auth.authStateChanges()
+          .where((u) => u != null)
+          .map((u) => u!.uid)
+          .first
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return _auth.currentUser?.uid;
+    }
+  }
+
   Future<UserCredential?> signInWithEmailAndPassword(
     String email,
     String password,
@@ -40,6 +61,16 @@ class AuthService {
 
   Future<void> signOut() async {
     await _auth.signOut();
+  }
+
+  /// התחברות עם Custom Token – מאפשרת להיכנס כמשתמש ספציפי לפי UID.
+  /// הטוקן נוצר בצד שרת (Firebase Admin SDK / Cloud Function).
+  Future<UserCredential?> signInWithCustomToken(String token) async {
+    try {
+      return await _auth.signInWithCustomToken(token);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
   }
 
   String _handleAuthException(FirebaseAuthException e) {

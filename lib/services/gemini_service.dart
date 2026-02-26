@@ -46,7 +46,7 @@ class GeminiService {
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _modelId,
-        generationConfig: const GenerationConfig(
+        generationConfig: GenerationConfig(
           maxOutputTokens: 200,
           temperature: 0.7,
         ),

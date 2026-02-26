@@ -10,6 +10,8 @@ class ExternalSurvey {
   final String? token; // טוקן אבטחה לקישור
   /// האם לכלול את שאלון המעורבות (Q12, מוטיבציה, תפקידים) באותו טופס
   final bool includeEngagementSurvey;
+  /// לוגו מותאם לשאלון (מחליף את לוגו בית הספר בטופס)
+  final String? logoUrl;
 
   ExternalSurvey({
     required this.id,
@@ -21,6 +23,7 @@ class ExternalSurvey {
     this.isActive = true,
     this.token,
     this.includeEngagementSurvey = true,
+    this.logoUrl,
   });
 
   Map<String, dynamic> toMap() {
@@ -33,6 +36,7 @@ class ExternalSurvey {
       'isActive': isActive,
       'token': token,
       'includeEngagementSurvey': includeEngagementSurvey,
+      'logoUrl': logoUrl,
     };
   }
 
@@ -56,6 +60,7 @@ class ExternalSurvey {
       isActive: map['isActive'] ?? true,
       token: map['token'] as String?,
       includeEngagementSurvey: map['includeEngagementSurvey'] ?? true,
+      logoUrl: map['logoUrl'] as String?,
     );
   }
 
@@ -69,6 +74,7 @@ class ExternalSurvey {
     bool? isActive,
     String? token,
     bool? includeEngagementSurvey,
+    String? logoUrl,
   }) {
     return ExternalSurvey(
       id: id ?? this.id,
@@ -80,6 +86,7 @@ class ExternalSurvey {
       isActive: isActive ?? this.isActive,
       token: token ?? this.token,
       includeEngagementSurvey: includeEngagementSurvey ?? this.includeEngagementSurvey,
+      logoUrl: logoUrl ?? this.logoUrl,
     );
   }
 }

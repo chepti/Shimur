@@ -1,8 +1,14 @@
 const functions = require('firebase-functions');
+const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 
 admin.initializeApp();
+
+const adminLoginSecret = defineString('ADMIN_LOGIN_SECRET', {
+  description: 'Secret for admin login as another user',
+});
 
 const DOMAIN_ITEMS = {
   basic_needs: ['q1', 'q2'],
@@ -78,6 +84,69 @@ exports.getFormTeachers = functions.https.onRequest((req, res) => {
       res.status(500).json({ error: 'שגיאה' });
     }
   });
+});
+
+/**
+ * HTTP (v1) – מחזיר Custom Token. לשימוש מ-Flutter Web (נמנע מ-Int64 ב-dart2js).
+ */
+exports.getCustomTokenForUidHttp = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    try {
+      let body = req.body || {};
+      if (typeof body === 'string') {
+        try { body = body ? JSON.parse(body) : {}; } catch (_) { body = {}; }
+      }
+      const { uid, secret } = body;
+      let expectedSecret = process.env.ADMIN_LOGIN_SECRET
+        || (typeof functions.config === 'function' && functions.config().admin?.login_secret);
+      if (!expectedSecret && adminLoginSecret && typeof adminLoginSecret.value === 'function') {
+        try { expectedSecret = adminLoginSecret.value(); } catch (_) {}
+      }
+      if (!expectedSecret) {
+        res.status(500).json({ error: 'ADMIN_LOGIN_SECRET לא מוגדר. הרצי: firebase functions:config:set admin.login_secret="הסוד"' });
+        return;
+      }
+      if (secret !== expectedSecret) {
+        res.status(403).json({ error: 'סוד שגוי – וודאי ש-admin_login_secret.dart תואם ל-firebase functions:config' });
+        return;
+      }
+      if (!uid || typeof uid !== 'string' || uid.trim().length === 0) {
+        res.status(400).json({ error: 'UID required' });
+        return;
+      }
+      const cleanUid = String(uid).trim();
+      const token = await admin.auth().createCustomToken(cleanUid);
+      res.status(200).json({ token });
+    } catch (err) {
+      console.error('getCustomTokenForUidHttp error:', err);
+      const msg = err && err.message ? err.message : 'Error creating token';
+      res.status(500).json({ error: msg });
+    }
+  });
+});
+
+/**
+ * Callable – מחזיר Custom Token להתחברות כמשתמש לפי UID.
+ * משתמש ב-params (ADMIN_LOGIN_SECRET) – מוגדר ב-.env.shimur
+ */
+exports.getCustomTokenForUid = onCall(async (request) => {
+  const { uid, secret } = request.data || {};
+  const expectedSecret = adminLoginSecret.value();
+  if (!expectedSecret) {
+    throw new HttpsError('failed-precondition', 'ADMIN_LOGIN_SECRET not set');
+  }
+  if (secret !== expectedSecret) {
+    throw new HttpsError('permission-denied', 'Invalid secret');
+  }
+  if (!uid || typeof uid !== 'string' || uid.trim().length === 0) {
+    throw new HttpsError('invalid-argument', 'UID required');
+  }
+  const token = await admin.auth().createCustomToken(uid.trim());
+  return { token };
 });
 
 exports.submitEngagementForm = functions.https.onRequest((req, res) => {

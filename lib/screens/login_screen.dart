@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/uid_login_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _schoolSymbolController = TextEditingController();
   final _schoolNameController = TextEditingController();
+  final _uidController = TextEditingController();
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
   bool _isLoading = false;
@@ -26,7 +28,33 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     _schoolSymbolController.dispose();
     _schoolNameController.dispose();
+    _uidController.dispose();
     super.dispose();
+  }
+
+  void _showUidLoginDialog() {
+    _uidController.clear();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _UidLoginDialog(
+        uidController: _uidController,
+        authService: _authService,
+        onSuccess: () {
+          Navigator.of(ctx).pop();
+          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
+        },
+        onError: (msg) {
+          Navigator.of(ctx).pop();
+          scaffoldMessenger.showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 5)));
+        },
+      ),
+    );
+  }
+
+  void _handleUidLogin() {
+    _showUidLoginDialog();
   }
 
   Future<void> _handleSubmit() async {
@@ -91,14 +119,13 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Scaffold(
         backgroundColor: Colors.grey[50],
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                     // לוגו חמ"ד
                     Column(
                       children: [
@@ -308,12 +335,109 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 32),
+                    Center(
+                      child: TextButton(
+                        onPressed: _handleUidLogin,
+                        style: TextButton.styleFrom(
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: Colors.grey[500],
+                        ),
+                        child: const Text(
+                          'Login as...',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
         ),
+    );
+  }
+}
+
+class _UidLoginDialog extends StatefulWidget {
+  const _UidLoginDialog({
+    required this.uidController,
+    required this.authService,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  final TextEditingController uidController;
+  final AuthService authService;
+  final VoidCallback onSuccess;
+  final void Function(String) onError;
+
+  @override
+  State<_UidLoginDialog> createState() => _UidLoginDialogState();
+}
+
+class _UidLoginDialogState extends State<_UidLoginDialog> {
+  bool _isLoading = false;
+
+  Future<void> _submit() async {
+    final uid = widget.uidController.text.trim();
+    if (uid.isEmpty) {
+      widget.onError('נא להזין UID');
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final token = await UidLoginService.getCustomTokenForUid(uid);
+      await widget.authService.signInWithCustomToken(token);
+      if (mounted) {
+        widget.onSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        widget.onError(msg);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        title: const Text('התחבר כמשתמש אחר'),
+        content: TextField(
+          controller: widget.uidController,
+          decoration: const InputDecoration(
+            labelText: 'UID מפיירבייס',
+            hintText: 'הדביקי את ה-UID',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => _submit(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+            child: const Text('ביטול'),
+          ),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF11a0db)),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('התחבר'),
+          ),
+        ],
       ),
     );
   }

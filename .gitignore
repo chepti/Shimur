@@ -47,4 +47,6 @@ app.*.map.json
 # firebase_options.dart - נדרש ל-CI; מוגדר ב-repo
 google-services.json
 GoogleService-Info.plist
+scripts/serviceAccountKey.json
+functions/.env*
 

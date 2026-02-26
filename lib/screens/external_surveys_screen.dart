@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/external_survey.dart';
 import '../services/firestore_service.dart';
 import 'external_survey_results_screen.dart';
@@ -302,6 +303,9 @@ class _CreateEditExternalSurveyScreenState
   final List<ExternalSurveyQuestion> _questions = [];
   bool _isLoading = false;
   bool _includeEngagementSurvey = true;
+  String? _surveyLogoUrl;
+  bool _logoUploading = false;
+  bool _logoRemoved = false;
 
   @override
   void initState() {
@@ -311,6 +315,7 @@ class _CreateEditExternalSurveyScreenState
       _descriptionController.text = widget.survey!.description ?? '';
       _questions.addAll(widget.survey!.questions);
       _includeEngagementSurvey = widget.survey!.includeEngagementSurvey;
+      _surveyLogoUrl = widget.survey!.logoUrl;
     }
   }
 
@@ -319,6 +324,124 @@ class _CreateEditExternalSurveyScreenState
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Widget _buildSurveyLogoCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.image, color: Color(0xFF11a0db), size: 22),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'לוגו השאלון',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'הלוגו יופיע בראש טופס השאלון (מחליף את לוגו בית הספר)',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 12),
+            if ((_surveyLogoUrl ?? (widget.survey?.logoUrl)) != null && !_logoRemoved)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    _surveyLogoUrl ?? widget.survey!.logoUrl!,
+                    height: 60,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.broken_image, size: 48),
+                  ),
+                ),
+              ),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _logoUploading || widget.survey == null
+                      ? null
+                      : () async {
+                          final picker = ImagePicker();
+                          final xfile = await picker.pickImage(
+                            source: ImageSource.gallery,
+                            maxWidth: 800,
+                            imageQuality: 85,
+                          );
+                          if (xfile == null || !mounted) return;
+                          setState(() => _logoUploading = true);
+                          try {
+                            final bytes = await xfile.readAsBytes();
+                            final contentType =
+                                xfile.mimeType ?? 'image/jpeg';
+                            final url = await _firestoreService
+                                .uploadExternalSurveyLogo(
+                              widget.survey!.id,
+                              bytes,
+                              contentType,
+                            );
+                            if (mounted) {
+                              setState(() {
+                                _surveyLogoUrl = url;
+                                _logoUploading = false;
+                                _logoRemoved = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('הלוגו עודכן בהצלחה')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() => _logoUploading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('שגיאה: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  icon: _logoUploading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.upload_file, size: 18),
+                  label: Text(_logoUploading ? 'מעלה...' : 'העלה לוגו'),
+                ),
+                if (_surveyLogoUrl != null || widget.survey?.logoUrl != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _logoUploading || widget.survey == null
+                        ? null
+                        : () {
+                            setState(() {
+                              _surveyLogoUrl = null;
+                              _logoRemoved = true;
+                            });
+                          },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('הסר'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -348,6 +471,8 @@ class _CreateEditExternalSurveyScreenState
             ),
             maxLines: 2,
           ),
+          const SizedBox(height: 16),
+          _buildSurveyLogoCard(),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -541,7 +666,7 @@ class _CreateEditExternalSurveyScreenState
     setState(() => _isLoading = true);
 
     try {
-      final survey = ExternalSurvey(
+      var survey = ExternalSurvey(
         id: widget.survey?.id ?? '',
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
@@ -552,6 +677,7 @@ class _CreateEditExternalSurveyScreenState
         isActive: widget.survey?.isActive ?? true,
         token: widget.survey?.token,
         includeEngagementSurvey: _includeEngagementSurvey,
+        logoUrl: _logoRemoved ? null : (_surveyLogoUrl ?? widget.survey?.logoUrl),
       );
 
       if (widget.survey == null) {
@@ -568,9 +694,12 @@ class _CreateEditExternalSurveyScreenState
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().contains('לא מחובר')
+            ? 'שגיאה בשמירה: נראה שההתחברות פגה. נסי לרענן את הדף ולהתחבר מחדש.'
+            : 'שגיאה בשמירה: $e';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('שגיאה בשמירה: $e'),
+            content: Text(msg),
             backgroundColor: Colors.red,
           ),
         );

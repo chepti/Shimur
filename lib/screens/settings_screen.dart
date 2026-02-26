@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -28,6 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ManagerSettings _settings = const ManagerSettings();
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _schoolLogoUrl;
+  bool _logoUploading = false;
 
   static const List<MapEntry<int, String>> _weekdayNames = [
     MapEntry(1, 'שני'),
@@ -48,9 +51,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     final s = await _firestoreService.getManagerSettings();
+    final school = await _firestoreService.getSchool();
     if (mounted) {
       setState(() {
         _settings = s;
+        _schoolLogoUrl = school?['logoUrl'] as String?;
         _isLoading = false;
       });
     }
@@ -97,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildProfileCard(),
+                  _buildProfileCardWithLogo(),
                   const SizedBox(height: 20),
                   _buildSectionTitle('יעדים', _AccentGreen),
                   _buildGoalsCard(),
@@ -158,21 +163,165 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildProfileCard() {
+  /// כרטיס פרופיל עם עיגול לוגו גדול – העלאה ועריכה דרך העיגול
+  Widget _buildProfileCardWithLogo() {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: _AccentLime.withValues(alpha: 0.2),
-          child: const Icon(Icons.person, color: _AccentGreen),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: _logoUploading ? null : _pickAndUploadLogo,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _schoolLogoUrl != null
+                          ? Colors.transparent
+                          : _AccentLime.withValues(alpha: 0.2),
+                      border: Border.all(
+                        color: _AccentGreen.withValues(alpha: 0.5),
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: _schoolLogoUrl != null
+                          ? Image.network(
+                              _schoolLogoUrl!,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.broken_image,
+                                size: 48,
+                                color: _AccentGreen,
+                              ),
+                            )
+                          : const Icon(Icons.person, size: 56, color: _AccentGreen),
+                    ),
+                  ),
+                  if (_logoUploading)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.4),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                    )
+                  else
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _AccentGreen,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _authService.currentUser?.email ?? 'לא מחובר',
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'לוגו בית הספר – יופיע בראש טופס השאלון',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            if (_schoolLogoUrl != null) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _logoUploading ? null : _removeLogo,
+                icon: const Icon(Icons.delete_outline, size: 18),
+                label: const Text('הסר לוגו'),
+                style: TextButton.styleFrom(foregroundColor: _AccentRed),
+              ),
+            ],
+          ],
         ),
-        title: const Text('פרופיל', style: TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(_authService.currentUser?.email ?? 'לא מחובר'),
-        trailing: const Icon(Icons.chevron_left),
       ),
     );
+  }
+
+  Future<void> _pickAndUploadLogo() async {
+    final picker = ImagePicker();
+    final xfile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
+    if (xfile == null || !mounted) return;
+    setState(() => _logoUploading = true);
+    try {
+      final bytes = await xfile.readAsBytes();
+      final contentType = xfile.mimeType ?? 'image/jpeg';
+      final url = await _firestoreService.uploadSchoolLogo(bytes, contentType);
+      if (mounted) {
+        setState(() {
+          _schoolLogoUrl = url;
+          _logoUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('הלוגו עודכן בהצלחה')),
+        );
+      }
+    } catch (e, st) {
+      if (mounted) {
+        setState(() => _logoUploading = false);
+        debugPrint('שגיאה בהעלאת לוגו: $e');
+        debugPrint('Stack trace: $st');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה בהעלאת לוגו: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeLogo() async {
+    try {
+      await _firestoreService.clearSchoolLogo();
+      if (mounted) {
+        setState(() => _schoolLogoUrl = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('הלוגו הוסר')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildGoalsCard() {

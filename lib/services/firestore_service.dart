@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/teacher.dart';
 import '../models/action.dart';
 import '../models/manager_settings.dart';
@@ -8,6 +10,7 @@ import '../models/recommended_action.dart';
 import '../models/recommended_action_comment.dart';
 import '../models/external_survey.dart';
 import '../services/auth_service.dart';
+import '../config/auth_state.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,25 +18,89 @@ class FirestoreService {
 
   String? get _currentUserId => _authService.currentUserId;
 
+  /// מחזיר את ה-UID אחרי המתנה ל-auth (פתרון ל-custom token login).
+  /// משתמש ב-AuthState.verifiedUid כ-fallback כש-Firebase Auth מחזיר null ב-Web.
+  Future<String> _requireUserId() async {
+    var uid = await _authService.ensureUserIdReady();
+    if (uid == null) uid = AuthState.verifiedUid;
+    if (uid == null) throw Exception('לא מחובר');
+    return uid;
+  }
+
   // ========== Schools ==========
   Future<void> createSchool(String schoolSymbol, String schoolName) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-    
-    await _firestore.collection('schools').doc(_currentUserId).set({
+    final uid = await _requireUserId();
+    await _firestore.collection('schools').doc(uid).set({
       'name': schoolName,
-      'managerId': _currentUserId!,
+      'managerId': uid,
       'symbol': schoolSymbol,
     });
   }
 
   Future<Map<String, dynamic>?> getSchool() async {
-    if (_currentUserId == null) return null;
-    
-    final doc = await _firestore.collection('schools').doc(_currentUserId).get();
+    var uid = _currentUserId;
+    if (uid == null) uid = await _authService.ensureUserIdReady();
+    if (uid == null) uid = AuthState.verifiedUid;
+    if (uid == null) return null;
+
+    final doc = await _firestore.collection('schools').doc(uid).get();
     if (doc.exists) {
       return doc.data();
     }
     return null;
+  }
+
+  /// מעלה לוגו ל-Storage ומעדכן את מסמך בית הספר ב־logoUrl. מחזיר את ה-URL.
+  Future<String> uploadSchoolLogo(Uint8List bytes, String contentType) async {
+    final uid = await _requireUserId();
+    final ext = contentType == 'image/png' ? 'png' : 'jpg';
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('school_logos')
+        .child(uid)
+        .child('logo.$ext');
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: contentType),
+    );
+    final url = await ref.getDownloadURL();
+
+    await _firestore.collection('schools').doc(uid).set(
+      {'logoUrl': url},
+      SetOptions(merge: true),
+    );
+    return url;
+  }
+
+  /// מסיר את לוגו בית הספר (מעדכן ל-null ב-Firestore; הקובץ ב-Storage נשאר).
+  Future<void> clearSchoolLogo() async {
+    final uid = await _requireUserId();
+    await _firestore.collection('schools').doc(uid).update({
+      'logoUrl': FieldValue.delete(),
+    });
+  }
+
+  /// מעלה לוגו לשאלון חיצוני. מחזיר את ה-URL.
+  Future<String> uploadExternalSurveyLogo(
+    String surveyId,
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    final uid = await _requireUserId();
+    final ext = contentType == 'image/png' ? 'png' : 'jpg';
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('external_survey_logos')
+        .child(uid)
+        .child(surveyId)
+        .child('logo.$ext');
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: contentType),
+    );
+    return ref.getDownloadURL();
   }
 
   // ========== Teachers ==========
@@ -56,33 +123,30 @@ class FirestoreService {
   }
 
   Future<void> addTeacher(Teacher teacher) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-    
+    final uid = await _requireUserId();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .add(teacher.toMap());
   }
 
   Future<void> updateTeacher(Teacher teacher) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-    
+    final uid = await _requireUserId();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacher.id)
         .update(teacher.toMap());
   }
 
   Future<void> deleteTeacher(String teacherId) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-    
+    final uid = await _requireUserId();
     // מחק גם את כל הפעולות
     final actionsSnapshot = await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacherId)
         .collection('actions')
@@ -94,7 +158,7 @@ class FirestoreService {
     
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacherId)
         .delete();
@@ -106,10 +170,10 @@ class FirestoreService {
     required String fromTeacherId,
     required String toTeacherId,
   }) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
+    final uid = await _requireUserId();
     if (fromTeacherId == toTeacherId) return;
 
-    final schoolRef = _firestore.collection('schools').doc(_currentUserId);
+    final schoolRef = _firestore.collection('schools').doc(uid);
     final fromRef = schoolRef.collection('teachers').doc(fromTeacherId);
     final toRef = schoolRef.collection('teachers').doc(toTeacherId);
 
@@ -398,11 +462,10 @@ class FirestoreService {
   }
 
   Future<void> addAction(String teacherId, Action action) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     final teacherRef = _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacherId);
 
@@ -418,11 +481,10 @@ class FirestoreService {
   }
 
   Future<void> updateAction(String teacherId, Action action) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-    
+    final uid = await _requireUserId();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacherId)
         .collection('actions')
@@ -450,8 +512,7 @@ class FirestoreService {
   /// המנהל מעתיק את הקישור מעמוד ההגדרות, שולח לקבוצת הצוות,
   /// וכל מורה נכנס, כותב את שמו המלא וממלא את השאלון.
   Future<String> getOrCreateSchoolFormLink() async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     var settings = await getManagerSettings();
     String token = settings.schoolFormToken ?? '';
     if (token.isEmpty) {
@@ -464,18 +525,21 @@ class FirestoreService {
 
     const baseUrl = 'https://shimur.web.app';
     // s = schoolId (uid של המנהל), t = טוקן אבטחה לטופס הכללי
-    return '$baseUrl/form.html?s=$_currentUserId&t=$token';
+    return '$baseUrl/form.html?s=$uid&t=$token';
   }
 
   // ========== הגדרות מנהל ==========
   static const String _managerSettingsDocId = 'manager';
 
   Future<ManagerSettings> getManagerSettings() async {
-    if (_currentUserId == null) return const ManagerSettings();
+    var uid = _currentUserId;
+    if (uid == null) uid = await _authService.ensureUserIdReady();
+    if (uid == null) uid = AuthState.verifiedUid;
+    if (uid == null) return const ManagerSettings();
 
     final doc = await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('settings')
         .doc(_managerSettingsDocId)
         .get();
@@ -487,14 +551,30 @@ class FirestoreService {
   }
 
   Future<void> updateManagerSettings(ManagerSettings settings) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('settings')
         .doc(_managerSettingsDocId)
         .set(settings.toMap());
+  }
+
+  /// מוודא שקיים schoolFormToken – נדרש כדי שטופס השאלון החיצוני יעבוד.
+  /// קוראים פעם אחת בטעינת האפליקציה.
+  Future<void> ensureManagerSettingsWithFormToken() async {
+    try {
+      var settings = await getManagerSettings();
+      if ((settings.schoolFormToken ?? '').isEmpty) {
+        final random = Random.secure();
+        final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+        final token = base64Url.encode(bytes).replaceAll('=', '');
+        settings = settings.copyWith(schoolFormToken: token);
+        await updateManagerSettings(settings);
+      }
+    } catch (_) {
+      // שקט – לא קריטי
+    }
   }
 
   /// בודק אם ניתן להשתמש ב-AI (לא חרגנו מהמכסה החודשית).
@@ -545,11 +625,10 @@ class FirestoreService {
     required String type,
     required bool isAnonymous,
   }) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     await _firestore.collection(_recommendedActionsCollection).add({
       'type': type,
-      'addedByUserId': isAnonymous ? null : _currentUserId,
+      'addedByUserId': isAnonymous ? null : uid,
       'isAnonymous': isAnonymous,
       'createdAt': DateTime.now().toIso8601String(),
       'ratingSum': 0,
@@ -560,7 +639,7 @@ class FirestoreService {
 
   /// מעדכן דירוג של המשתמש הנוכחי (1–5). אם כבר דירג – מעדכן.
   Future<void> setRecommendedActionRating(String recommendedActionId, int rating) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
+    final uid = await _requireUserId();
     if (rating < 1 || rating > 5) return;
 
     final ref = _firestore
@@ -578,7 +657,7 @@ class FirestoreService {
       );
       final prevSum = data['ratingSum'] as int? ?? 0;
       final prevCount = data['ratingCount'] as int? ?? 0;
-      final oldRating = prevByUser[_currentUserId];
+      final oldRating = prevByUser[uid];
 
       int newSum = prevSum;
       int newCount = prevCount;
@@ -588,7 +667,7 @@ class FirestoreService {
       }
       newSum += rating;
       newCount += 1;
-      prevByUser[_currentUserId!] = rating;
+      prevByUser[uid] = rating;
 
       tx.update(ref, {
         'ratingSum': newSum,
@@ -622,7 +701,7 @@ class FirestoreService {
     required String text,
     required bool isAnonymous,
   }) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
+    final uid = await _requireUserId();
     if (text.trim().isEmpty) return;
 
     await _firestore
@@ -631,7 +710,7 @@ class FirestoreService {
         .collection('comments')
         .add({
       'recommendedActionId': recommendedActionId,
-      'userId': isAnonymous ? null : _currentUserId,
+      'userId': isAnonymous ? null : uid,
       'isAnonymous': isAnonymous,
       'text': text.trim(),
       'createdAt': DateTime.now().toIso8601String(),
@@ -643,11 +722,10 @@ class FirestoreService {
 
   /// יצירת שאלון חיצוני חדש
   Future<String> createExternalSurvey(ExternalSurvey survey) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     final docRef = await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection(_externalSurveysCollection)
         .add(survey.toMap());
 
@@ -656,23 +734,23 @@ class FirestoreService {
 
   /// עדכון שאלון חיצוני קיים
   Future<void> updateExternalSurvey(ExternalSurvey survey) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
+    final map = Map<String, dynamic>.from(survey.toMap());
+    if (survey.logoUrl == null) map['logoUrl'] = FieldValue.delete();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection(_externalSurveysCollection)
         .doc(survey.id)
-        .update(survey.toMap());
+        .update(map);
   }
 
   /// מחיקת שאלון חיצוני
   Future<void> deleteExternalSurvey(String surveyId) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     await _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection(_externalSurveysCollection)
         .doc(surveyId)
         .delete();
@@ -715,25 +793,25 @@ class FirestoreService {
   }
 
   /// יצירת או קבלת קישור לשאלון חיצוני
+  /// משתמש ב-schoolFormToken (כמו טופס רגיל) כדי שהכללים ב-Firestore יאפשרו יצירה/עדכון מורים
   Future<String> getExternalSurveyLink(String surveyId) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     final survey = await getExternalSurvey(surveyId);
     if (survey == null) throw Exception('שאלון לא נמצא');
 
-    // אם אין טוקן, יוצר אחד
-    String token = survey.token ?? '';
+    var settings = await getManagerSettings();
+    String token = settings.schoolFormToken ?? '';
     if (token.isEmpty) {
       final random = Random.secure();
       final bytes = List<int>.generate(24, (_) => random.nextInt(256));
       token = base64Url.encode(bytes).replaceAll('=', '');
-      final updatedSurvey = survey.copyWith(token: token);
-      await updateExternalSurvey(updatedSurvey);
+      settings = settings.copyWith(schoolFormToken: token);
+      await updateManagerSettings(settings);
     }
 
     const baseUrl = 'https://shimur.web.app';
-    // s = schoolId, surveyId = מזהה השאלון, t = טוקן
-    return '$baseUrl/form.html?s=$_currentUserId&surveyId=$surveyId&t=$token';
+    // s = schoolId, surveyId = מזהה השאלון, t = טוקן (schoolFormToken)
+    return '$baseUrl/form.html?s=$uid&surveyId=$surveyId&t=$token';
   }
 
   /// עדכון תשובות של מורה לשאלון חיצוני
@@ -742,11 +820,10 @@ class FirestoreService {
     required String surveyInstanceId,
     required Map<String, dynamic> responses,
   }) async {
-    if (_currentUserId == null) throw Exception('לא מחובר');
-
+    final uid = await _requireUserId();
     final teacherRef = _firestore
         .collection('schools')
-        .doc(_currentUserId)
+        .doc(uid)
         .collection('teachers')
         .doc(teacherId);
 

@@ -457,8 +457,9 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  alignment: WrapAlignment.start,
                                   children: teacher
                                       .engagementDomainScores.entries
                                       .map(
@@ -1020,7 +1021,7 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
   }
 }
 
-/// תיבת מדד מעורבות עם מילוי צבעוני חלקי לפי הציון
+/// תיבת מדד מעורבות – קו מסגרת עליון צבעוני בהתאם לציון
 class _EngagementScoreChip extends StatelessWidget {
   final String label;
   final int score;
@@ -1032,55 +1033,37 @@ class _EngagementScoreChip extends StatelessWidget {
     this.maxScore = 6,
   });
 
-  /// צבע לפי ציון: 5–6 ירוק, 3–4 צהוב, 1–2 אדום (מתוך צבעי התמה)
-  static Color _colorForScore(int score, int maxScore) {
-    if (score >= 5) return const Color(0xFF40AE49); // ירוק נעים
+  /// צבעי הדגשה - בכמויות קטנות לפי ציון
+  static Color _colorForScore(int score) {
+    if (score >= 5) return const Color(0xFF40AE49); // ירוק
+    if (score >= 4) return const Color(0xFFB2D234); // ירוק-צהוב
     if (score >= 3) return const Color(0xFFFAA41A); // צהוב
-    return const Color(0xFFAC2B31);                  // אדום
+    if (score >= 2) return const Color(0xFFED1C24);  // אדום
+    return const Color(0xFFAC2B31);                   // אדום כהה
   }
 
   @override
   Widget build(BuildContext context) {
-    final fillFraction = (score / maxScore).clamp(0.0, 1.0);
-    final fillColor = _colorForScore(score, maxScore);
+    final accentColor = _colorForScore(score);
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 140, minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Colors.grey[50],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border(
+          top: BorderSide(color: accentColor, width: 3),
+          left: BorderSide(color: Colors.grey[300]!),
+          right: BorderSide(color: Colors.grey[300]!),
+          bottom: BorderSide(color: Colors.grey[300]!),
+        ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Stack(
-              children: [
-                // מילוי צבעוני (מימין לשמאל ב-RTL)
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  width: constraints.maxWidth * fillFraction,
-                  child: Container(color: fillColor),
-                ),
-                // טקסט מעל
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text(
-                      '$label: $score/$maxScore',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: fillFraction >= 0.5 ? Colors.white : Colors.grey[800],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+      child: Text(
+        '$label: $score/$maxScore',
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[800],
+          fontSize: 13,
         ),
       ),
     );

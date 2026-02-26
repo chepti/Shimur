@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:file_picker/_internal/file_picker_web.dart';
 import 'config/allowed_users.dart';
 import 'config/auth_state.dart';
 import 'screens/login_screen.dart';
@@ -12,6 +15,9 @@ import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
+  if (kIsWeb) {
+    FilePickerWeb.registerWith(webPluginRegistrar);
+  }
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(

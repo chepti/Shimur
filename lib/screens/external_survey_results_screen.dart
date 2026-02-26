@@ -84,7 +84,10 @@ class _ExternalSurveyResultsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_survey?.title ?? 'תוצאות שאלון'),
+        title: Align(
+          alignment: Alignment.centerRight,
+          child: Text(_survey?.title ?? 'תוצאות שאלון'),
+        ),
         backgroundColor: const Color(0xFF11a0db),
         bottom: _survey != null
             ? TabBar(
@@ -184,14 +187,14 @@ class _SurveyDashboardTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildSummaryCard(),
+        _buildSummaryCard(context),
         const SizedBox(height: 24),
-        ...survey.questions.map((q) => _buildQuestionChart(q)),
+        ...survey.questions.map((q) => _buildQuestionChart(context, q)),
       ],
     );
   }
 
-  Widget _buildSummaryCard() {
+  Widget _buildSummaryCard(BuildContext context) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -203,7 +206,7 @@ class _SurveyDashboardTab extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: const Color(0xFF11a0db).withOpacity(0.15),
+                color: const Color(0xFF11a0db).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(
@@ -214,7 +217,7 @@ class _SurveyDashboardTab extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   '${teachersWithResponses.length} מורים מילאו את השאלון',
@@ -235,20 +238,22 @@ class _SurveyDashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildQuestionChart(ExternalSurveyQuestion question) {
+  Widget _buildQuestionChart(BuildContext context, ExternalSurveyQuestion question) {
     if (question.type == ExternalSurveyQuestionType.scale) {
-      return _buildScaleChart(question);
+      return _buildScaleChart(context, question);
     }
     if (question.type == ExternalSurveyQuestionType.multipleChoice) {
       return _buildPieChart(question);
     }
-    return _buildWordCloud(question);
+    return _buildWordCloud(context, question);
   }
 
-  Widget _buildScaleChart(ExternalSurveyQuestion question) {
+  Widget _buildScaleChart(BuildContext context, ExternalSurveyQuestion question) {
     final distribution = <int, int>{};
+    final teachersByScore = <int, List<Teacher>>{};
     for (var i = 1; i <= 6; i++) {
       distribution[i] = 0;
+      teachersByScore[i] = [];
     }
     for (final teacher in teachersWithResponses) {
       final responses = teacher.externalSurveys[survey.id] ?? {};
@@ -256,6 +261,7 @@ class _SurveyDashboardTab extends StatelessWidget {
       final score = val is int ? val : int.tryParse(val?.toString() ?? '');
       if (score != null && score >= 1 && score <= 6) {
         distribution[score] = (distribution[score] ?? 0) + 1;
+        teachersByScore[score]!.add(teacher);
       }
     }
 
@@ -272,7 +278,7 @@ class _SurveyDashboardTab extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               question.text,
@@ -280,6 +286,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.right,
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -290,19 +297,23 @@ class _SurveyDashboardTab extends StatelessWidget {
                   maxY: (maxCount + 1).toDouble(),
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final score = group.x.toInt();
-                        final count = distribution[score] ?? 0;
-                        return BarTooltipItem(
-                          'ציון $score: $count תשובות',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        );
-                      },
+                      getTooltipItem: (_, __, ___, ____) => null,
                     ),
+                    touchCallback: (event, response) {
+                      if (event is FlTapUpEvent &&
+                          response != null &&
+                          response.spot != null) {
+                        final score = response.spot!.touchedBarGroupIndex + 1;
+                        final teachers = teachersByScore[score] ?? [];
+                        if (teachers.isNotEmpty) {
+                          _showTeachersBottomSheet(
+                            context,
+                            'ציון $score',
+                            teachers.map((t) => t.name).toList(),
+                          );
+                        }
+                      }
+                    },
                   ),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
@@ -319,11 +330,20 @@ class _SurveyDashboardTab extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (v, meta) {
-                          final s = v.toInt();
-                          if (s >= 1 && s <= 6) {
+                          final i = v.toInt();
+                          if (i >= 0 && i < 6) {
+                            final score = i + 1;
+                            final count = distribution[score] ?? 0;
                             return Padding(
                               padding: const EdgeInsets.only(top: 6),
-                              child: Text('$s', style: const TextStyle(fontSize: 12)),
+                              child: Text(
+                                '$count',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getScoreColor(score),
+                                ),
+                              ),
                             );
                           }
                           return const SizedBox.shrink();
@@ -337,7 +357,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                     show: true,
                     drawVerticalLine: false,
                     getDrawingHorizontalLine: (v) => FlLine(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withValues(alpha: 0.2),
                       strokeWidth: 1,
                     ),
                   ),
@@ -355,13 +375,60 @@ class _SurveyDashboardTab extends StatelessWidget {
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
                       ],
-                      showingTooltipIndicators: [0],
+                      showingTooltipIndicators: [],
                     );
                   }),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showTeachersBottomSheet(
+    BuildContext context,
+    String title,
+    List<String> names,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white.withValues(alpha: 0.95),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.4,
+        minChildSize: 0.2,
+        maxChildSize: 0.7,
+        expand: false,
+        builder: (_, controller) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  controller: controller,
+                  itemCount: names.length,
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(names[i], textAlign: TextAlign.right),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -414,7 +481,7 @@ class _SurveyDashboardTab extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               question.text,
@@ -422,6 +489,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.right,
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -483,8 +551,9 @@ class _SurveyDashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildWordCloud(ExternalSurveyQuestion question) {
+  Widget _buildWordCloud(BuildContext context, ExternalSurveyQuestion question) {
     final wordCounts = <String, int>{};
+    final responsesWithTeachers = <String, List<Teacher>>{};
     final stopWords = {'את', 'על', 'ב', 'ל', 'של', 'ה', 'ו', 'או', 'כ', 'מ', 'א', 'לא', 'כן'};
 
     for (final teacher in teachersWithResponses) {
@@ -493,6 +562,8 @@ class _SurveyDashboardTab extends StatelessWidget {
       if (val == null || val.toString().trim().isEmpty) continue;
 
       final text = val.toString().trim();
+      responsesWithTeachers[text] = [...(responsesWithTeachers[text] ?? []), teacher];
+
       final words = text.split(RegExp(r'\s+'));
       for (final w in words) {
         final clean = w.replaceAll(RegExp(r'[^\u0590-\u05FF\w]'), '').trim();
@@ -508,14 +579,20 @@ class _SurveyDashboardTab extends StatelessWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
     final topWords = sorted.take(40).toList();
     final maxCount = topWords.isEmpty ? 1 : topWords.first.value;
+    final minCount = topWords.isEmpty ? 1 : topWords.last.value;
 
     final cloudColors = [
       const Color(0xFF11a0db),
-      const Color(0xFF40AE49),
+      const Color(0xFF6B4E9C),
       const Color(0xFFAC2B31),
-      const Color(0xFF9C27B0),
-      Colors.teal,
+      const Color(0xFFFAA41A),
+      Colors.indigo,
+      Colors.deepPurple,
     ];
+
+    final sentences = responsesWithTeachers.entries
+        .map((e) => MapEntry(e.key, e.value.map((t) => t.name).toList()))
+        .toList();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -524,7 +601,7 @@ class _SurveyDashboardTab extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
               question.text,
@@ -532,34 +609,131 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.right,
             ),
             const SizedBox(height: 8),
             Text(
-              'ענן מילים – מילים חוזרות בתשובות',
+              'ענן מילים – מילים חוזרות בתשובות (לחיצה להצגת משפטים)',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.right,
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: topWords.map((e) {
-                final size = 12.0 + (e.value / maxCount) * 20;
-                final color = cloudColors[e.value % cloudColors.length];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    e.key,
-                    style: TextStyle(
-                      fontSize: size,
-                      fontWeight: FontWeight.w600,
-                      color: color,
+            GestureDetector(
+              onTap: () => _showSentencesBottomSheet(context, question.text, sentences),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: topWords.map((e) {
+                  final ratio = maxCount > minCount
+                      ? (e.value - minCount) / (maxCount - minCount)
+                      : 1.0;
+                  final size = 10.0 + ratio * 14;
+                  final color = cloudColors[e.value % cloudColors.length];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      e.key,
+                      style: TextStyle(
+                        fontSize: size,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showSentencesBottomSheet(
+    BuildContext context,
+    String questionText,
+    List<MapEntry<String, List<String>>> sentencesWithTeachers,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white.withValues(alpha: 0.95),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, controller) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                questionText,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'משפטים מהתשובות',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  controller: controller,
+                  itemCount: sentencesWithTeachers.length,
+                  itemBuilder: (_, i) {
+                    final entry = sentencesWithTeachers[i];
+                    final names = entry.value.join(', ');
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                entry.key,
+                                textAlign: TextAlign.right,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              names,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -597,6 +771,7 @@ class _SurveyDetailTab extends StatelessWidget {
               child: Text(
                 survey.description!,
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                textAlign: TextAlign.right,
               ),
             ),
           ),

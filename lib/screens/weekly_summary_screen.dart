@@ -853,9 +853,14 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   /// פותח חלונית עם פרטי המשימה – המנהל יכול להוסיף הערות או לשמור מיד.
   void _showTaskModalSheet(_EngagementInsight insight, String actionType) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final daysSinceSunday = now.weekday == 7 ? 0 : now.weekday;
-    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysSinceSunday));
-    final dateThisWeek = startOfWeek.add(const Duration(days: 3)); // יום רביעי בשבוע
+    final startOfWeek = today.subtract(Duration(days: daysSinceSunday));
+    // יום שישי של השבוע – אם כבר עבר, נבחר יום שישי בשבוע הבא
+    final fridayOfWeek = startOfWeek.add(const Duration(days: 5));
+    final dateThisWeek = fridayOfWeek.isBefore(today)
+        ? startOfWeek.add(const Duration(days: 12)) // יום שישי בשבוע הבא
+        : fridayOfWeek;
 
     final notesController = TextEditingController();
 

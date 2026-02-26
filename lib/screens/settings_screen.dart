@@ -30,6 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _schoolLogoUrl;
+  String? _managerName;
   bool _logoUploading = false;
 
   static const List<MapEntry<int, String>> _weekdayNames = [
@@ -56,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _settings = s;
         _schoolLogoUrl = school?['logoUrl'] as String?;
+        _managerName = school?['managerName'] as String?;
         _isLoading = false;
       });
     }
@@ -163,7 +165,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// כרטיס פרופיל עם עיגול לוגו גדול – העלאה ועריכה דרך העיגול
+  /// כרטיס פרופיל – לוגו משמאל עם עיפרון להעלאה, שם מנהל ואימייל מימין.
   Widget _buildProfileCardWithLogo() {
     return Card(
       elevation: 2,
@@ -172,82 +174,134 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: _logoUploading ? null : _pickAndUploadLogo,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _schoolLogoUrl != null
-                          ? Colors.transparent
-                          : _AccentLime.withValues(alpha: 0.2),
-                      border: Border.all(
-                        color: _AccentGreen.withValues(alpha: 0.5),
-                        width: 2,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // שם מנהל ואימייל מימין (ב-RTL: צד ימין של המסך)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        key: ValueKey('manager_${_managerName ?? ""}'),
+                        initialValue: _managerName ?? '',
+                        decoration: InputDecoration(
+                          labelText: 'שם המנהל/ת',
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _AccentGreen, width: 2),
+                          ),
+                        ),
+                        onChanged: (v) async {
+                          final trimmed = v.trim();
+                          if (trimmed != _managerName) {
+                            try {
+                              await _firestoreService.updateSchoolManagerName(trimmed);
+                              if (mounted) setState(() => _managerName = trimmed);
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('שגיאה: $e')),
+                                );
+                              }
+                            }
+                          }
+                        },
                       ),
-                    ),
-                    child: ClipOval(
-                      child: _schoolLogoUrl != null
-                          ? Image.network(
-                              _schoolLogoUrl!,
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.broken_image,
-                                size: 48,
-                                color: _AccentGreen,
-                              ),
-                            )
-                          : const Icon(Icons.person, size: 56, color: _AccentGreen),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _authService.currentUser?.email ?? 'לא מחובר',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                        textAlign: TextAlign.right,
+                      ),
+                    ],
                   ),
-                  if (_logoUploading)
-                    Positioned.fill(
-                      child: Container(
+                ),
+                const SizedBox(width: 20),
+                // לוגו מיושר שמאלה עם עיפרון להעלאת תמונה – יופיע גם בשאלון
+                GestureDetector(
+                  onTap: _logoUploading ? null : _pickAndUploadLogo,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withValues(alpha: 0.4),
+                          color: _schoolLogoUrl != null
+                              ? Colors.transparent
+                              : _AccentLime.withValues(alpha: 0.2),
+                          border: Border.all(
+                            color: _AccentGreen.withValues(alpha: 0.5),
+                            width: 2,
+                          ),
                         ),
-                        child: const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
+                        child: ClipOval(
+                          child: _schoolLogoUrl != null
+                              ? Image.network(
+                                  _schoolLogoUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.broken_image,
+                                    size: 36,
+                                    color: _AccentGreen,
+                                  ),
+                                )
+                              : const Icon(Icons.school, size: 40, color: _AccentGreen),
                         ),
                       ),
-                    )
-                  else
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _AccentGreen,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                      if (_logoUploading)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withValues(alpha: 0.4),
                             ),
-                          ],
+                            child: const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _AccentGreen,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                          ),
                         ),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 20),
-                      ),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Text(
-              _authService.currentUser?.email ?? 'לא מחובר',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
             Text(
               'לוגו בית הספר – יופיע בראש טופס השאלון',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -287,7 +341,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _logoUploading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('הלוגו עודכן בהצלחה')),
+          const SnackBar(content: Text('הלוגו עודכן בהצלחה – יופיע בראש השאלון')),
         );
       }
     } catch (e, st) {

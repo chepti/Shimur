@@ -1,7 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import '../models/action.dart' as models;
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
-import 'add_action_screen.dart';
 import 'teacher_details_screen.dart';
 
 /// מסך סיכום שבוע – התראה ליום שישי.
@@ -88,6 +89,11 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   final Map<String, String> _moodTrendUpdates = {}; // teacherId -> 'up'|'down'
   final Map<String, String> _moodNoteUpdates = {}; // teacherId -> note
   final Set<String> _selectedInsightIds = {}; // "teacherId_q2" etc.
+  /// מפה insightId -> Action – פעולות מקושרות להיגדים (לסינון)
+  Map<String, models.Action> _linkedActions = {};
+  /// 7 היגדים אקראיים להצגה – מתעדכן ברענון
+  List<String> _displayedInsightIds = [];
+  final Random _random = Random();
   bool _isLoading = true;
   bool _moodSaving = false;
 
@@ -108,6 +114,8 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     if (!mounted) return;
     final documentedIds = await _firestoreService.getTeacherIdsWithActionsInCurrentWeek();
     if (!mounted) return;
+    final linkedActions = await _firestoreService.getActionsLinkedToInsights();
+    if (!mounted) return;
     setState(() {
       _teachers = teachers;
       _documentedThisWeekIds.clear();
@@ -116,8 +124,31 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
         _addressedIds.add(id);
         _notAddressedIds.remove(id);
       }
+      _linkedActions = linkedActions;
+      _pickRandomInsights();
       _isLoading = false;
     });
+  }
+
+  /// בוחר 7 היגדים אקראיים מתוך הרשימה המסוננת (ללא אלה שיש להם משימה פעילה).
+  void _pickRandomInsights() {
+    final all = _buildEngagementInsights();
+    final filtered = all.where((i) => _shouldShowInsight(i.id)).toList();
+    if (filtered.length <= 7) {
+      _displayedInsightIds = filtered.map((i) => i.id).toList();
+    } else {
+      final shuffled = List<_EngagementInsight>.from(filtered)..shuffle(_random);
+      _displayedInsightIds = shuffled.take(7).map((i) => i.id).toList();
+    }
+  }
+
+  /// היגד מוצג אם אין משימה מקושרת, או אם עבר חודש והמשימה לא בוצעה.
+  bool _shouldShowInsight(String insightId) {
+    final action = _linkedActions[insightId];
+    if (action == null) return true;
+    if (action.completed) return false;
+    final monthAgo = DateTime.now().subtract(const Duration(days: 30));
+    return action.createdAt.isBefore(monthAgo);
   }
 
   void _onSwiped(Teacher teacher, bool addressed) {
@@ -699,7 +730,11 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   }
 
   Widget _buildEngagementSection() {
-    final insights = _buildEngagementInsights();
+    final allInsights = _buildEngagementInsights();
+    final availableInsights = allInsights.where((i) => _shouldShowInsight(i.id)).toList();
+    final insights = allInsights
+        .where((i) => _displayedInsightIds.contains(i.id))
+        .toList();
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -712,10 +747,21 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
               children: [
                 Icon(Icons.format_quote, color: Colors.purple[700]),
                 const SizedBox(width: 8),
-                const Text(
-                  'היגדים מהשאלון – להעברת לפעולה',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const Expanded(
+                  child: Text(
+                    'היגדים מהשאלון – להעברת לפעולה',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
+                const Text('7 אקראיים', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                if (availableInsights.length > 7)
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'רענן להחליף ל-7 אחרים',
+                    onPressed: () {
+                      setState(() => _pickRandomInsights());
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -733,13 +779,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                 ),
               )
             else ...[
-              ...insights.map((insight) => _buildInsightTile(insight)),
-              if (_selectedInsightIds.isNotEmpty) ...[
-                const Divider(height: 24),
-                const Text('פעולות מוצעות לפריטים שנבחרו:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...insights.where((i) => _selectedInsightIds.contains(i.id)).map((i) => _buildSuggestedActions(i)),
-              ],
+              ...insights.map((insight) => _buildInsightTileWithActions(insight)),
             ],
           ],
         ),
@@ -747,63 +787,89 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     );
   }
 
-  Widget _buildInsightTile(_EngagementInsight insight) {
+  /// היגד + הצעות לפעולה מוצגות מיד מתחתיו כשבוחרים
+  Widget _buildInsightTileWithActions(_EngagementInsight insight) {
     final selected = _selectedInsightIds.contains(insight.id);
-    return CheckboxListTile(
-      value: selected,
-      onChanged: (v) {
-        setState(() {
-          if (v == true) {
-            _selectedInsightIds.add(insight.id);
-          } else {
-            _selectedInsightIds.remove(insight.id);
-          }
-        });
-      },
-      title: Text(
-        insight.description,
-        style: const TextStyle(fontSize: 14),
-      ),
-      controlAffinity: ListTileControlAffinity.leading,
-    );
-  }
-
-  Widget _buildSuggestedActions(_EngagementInsight insight) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${insight.teacherName} – ${insight.problemLabel}',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CheckboxListTile(
+          value: selected,
+          onChanged: (v) {
+            setState(() {
+              if (v == true) {
+                _selectedInsightIds.add(insight.id);
+              } else {
+                _selectedInsightIds.remove(insight.id);
+              }
+            });
+          },
+          title: Text(
+            insight.description,
+            style: const TextStyle(fontSize: 14),
           ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ...insight.suggestedActions.map((action) => ActionChip(
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
+        if (selected && insight.suggestedActions.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(right: 48, left: 16, bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'פעולות מוצעות:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  textDirection: TextDirection.rtl,
+                  children: insight.suggestedActions.map((action) => ActionChip(
                     label: Text(action),
-                    onPressed: () => _openAddAction(insight.teacherId, action),
-                  )),
-            ],
+                    onPressed: () => _createTaskFromInsight(insight, action),
+                  )).toList(),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
+      ],
     );
   }
 
-  void _openAddAction(String teacherId, String suggestedAction) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddActionScreen(
-          teacherId: teacherId,
-          suggestedType: suggestedAction,
-        ),
-      ),
+  /// יוצר משימה להשבוע ישירות – ההיגד נעלם מהרשימה.
+  Future<void> _createTaskFromInsight(_EngagementInsight insight, String actionType) async {
+    final now = DateTime.now();
+    final daysSinceSunday = now.weekday == 7 ? 0 : now.weekday;
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysSinceSunday));
+    final dateThisWeek = startOfWeek.add(const Duration(days: 3)); // יום רביעי בשבוע
+
+    final action = models.Action(
+      id: '',
+      type: actionType,
+      date: dateThisWeek,
+      notes: null,
+      completed: false,
+      createdAt: DateTime.now(),
+      insightId: insight.id,
     );
+
+    try {
+      await _firestoreService.addAction(insight.teacherId, action);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('נוצרה משימה להשבוע')),
+        );
+        await _load(); // טעינה מחדש – ההיגד ייעלם (יש משימה מקושרת)
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה: $e')),
+        );
+      }
+    }
   }
 }
 

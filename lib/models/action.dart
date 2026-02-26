@@ -6,6 +6,8 @@ class Action {
   final String? notes;
   final bool completed;
   final DateTime createdAt;
+  /// מזהה היגד מסיכום שבוע – לקישור משימה להיגד (להעלמה/הופעה מחדש)
+  final String? insightId;
 
   Action({
     required this.id,
@@ -14,16 +16,21 @@ class Action {
     this.notes,
     required this.completed,
     required this.createdAt,
+    this.insightId,
   });
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'type': type,
       'date': date?.toIso8601String(), // null = "ללא תאריך", נשמר כדי ש־orderBy יעבוד
       'notes': notes,
       'completed': completed,
       'createdAt': createdAt.toIso8601String(),
     };
+    if (insightId != null && insightId!.isNotEmpty) {
+      map['insightId'] = insightId;
+    }
+    return map;
   }
 
   factory Action.fromMap(String id, Map<String, dynamic> map) {
@@ -36,6 +43,7 @@ class Action {
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
+      insightId: map['insightId'] as String?,
     );
   }
 
@@ -44,6 +52,7 @@ class Action {
     DateTime? date,
     String? notes,
     bool? completed,
+    String? insightId,
   }) {
     return Action(
       id: id,
@@ -52,6 +61,7 @@ class Action {
       notes: notes ?? this.notes,
       completed: completed ?? this.completed,
       createdAt: createdAt,
+      insightId: insightId ?? this.insightId,
     );
   }
 }

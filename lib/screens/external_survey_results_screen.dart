@@ -86,7 +86,10 @@ class _ExternalSurveyResultsScreenState
       appBar: AppBar(
         title: Align(
           alignment: Alignment.centerRight,
-          child: Text(_survey?.title ?? 'תוצאות שאלון'),
+          child: Text(
+            _survey?.title ?? 'תוצאות שאלון',
+            textDirection: TextDirection.rtl,
+          ),
         ),
         backgroundColor: const Color(0xFF11a0db),
         bottom: _survey != null
@@ -225,10 +228,12 @@ class _SurveyDashboardTab extends StatelessWidget {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
+                  textDirection: TextDirection.rtl,
                 ),
                 Text(
                   '${survey.questions.length} שאלות',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  textDirection: TextDirection.rtl,
                 ),
               ],
             ),
@@ -287,6 +292,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.right,
+              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -442,7 +448,11 @@ class _SurveyDashboardTab extends StatelessWidget {
                   itemCount: names.length,
                   itemBuilder: (_, i) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(names[i], textAlign: TextAlign.right),
+                    child: Text(
+                    names[i],
+                    textAlign: TextAlign.right,
+                    textDirection: TextDirection.rtl,
+                  ),
                   ),
                 ),
               ),
@@ -509,6 +519,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.right,
+              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -629,12 +640,14 @@ class _SurveyDashboardTab extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.right,
+              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 8),
             Text(
               'ענן מילים – מילים חוזרות בתשובות (לחיצה להצגת משפטים)',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               textAlign: TextAlign.right,
+              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
             GestureDetector(
@@ -708,11 +721,13 @@ class _SurveyDashboardTab extends StatelessWidget {
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
+                    textDirection: TextDirection.rtl,
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'משפטים מהתשובות',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    textDirection: TextDirection.rtl,
                   ),
                   const SizedBox(height: 12),
                   Expanded(
@@ -740,6 +755,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                                     child: Text(
                                       entry.key,
                                       style: const TextStyle(fontSize: 14),
+                                      textDirection: TextDirection.rtl,
                                     ),
                                   ),
                                 ),
@@ -753,6 +769,7 @@ class _SurveyDashboardTab extends StatelessWidget {
                                       color: Colors.grey[700],
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    textDirection: TextDirection.rtl,
                                   ),
                                 ),
                               ],
@@ -859,6 +876,7 @@ class _TeacherResponseCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
+                        textDirection: TextDirection.rtl,
                       ),
                       const SizedBox(height: 4),
                       _buildResponseDisplay(question, response),
@@ -926,7 +944,11 @@ class _TeacherResponseCard extends StatelessWidget {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(response.toString(), style: const TextStyle(fontSize: 14)),
+      child: Text(
+        response.toString(),
+        style: const TextStyle(fontSize: 14),
+        textDirection: TextDirection.rtl,
+      ),
     );
   }
 

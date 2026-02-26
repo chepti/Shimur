@@ -22,25 +22,42 @@ class FirestoreService {
   /// משתמש ב-AuthState.verifiedUid כ-fallback כש-Firebase Auth מחזיר null ב-Web.
   Future<String> _requireUserId() async {
     var uid = await _authService.ensureUserIdReady();
-    if (uid == null) uid = AuthState.verifiedUid;
+    uid ??= AuthState.verifiedUid;
     if (uid == null) throw Exception('לא מחובר');
     return uid;
   }
 
   // ========== Schools ==========
-  Future<void> createSchool(String schoolSymbol, String schoolName) async {
+  Future<void> createSchool(
+    String schoolSymbol,
+    String schoolName, {
+    String? managerName,
+  }) async {
     final uid = await _requireUserId();
-    await _firestore.collection('schools').doc(uid).set({
+    final data = <String, dynamic>{
       'name': schoolName,
       'managerId': uid,
       'symbol': schoolSymbol,
-    });
+    };
+    if (managerName != null && managerName.isNotEmpty) {
+      data['managerName'] = managerName;
+    }
+    await _firestore.collection('schools').doc(uid).set(data);
+  }
+
+  /// מעדכן את שם המנהל במסמך בית הספר.
+  Future<void> updateSchoolManagerName(String managerName) async {
+    final uid = await _requireUserId();
+    await _firestore.collection('schools').doc(uid).set(
+      {'managerName': managerName},
+      SetOptions(merge: true),
+    );
   }
 
   Future<Map<String, dynamic>?> getSchool() async {
     var uid = _currentUserId;
-    if (uid == null) uid = await _authService.ensureUserIdReady();
-    if (uid == null) uid = AuthState.verifiedUid;
+    uid ??= await _authService.ensureUserIdReady();
+    uid ??= AuthState.verifiedUid;
     if (uid == null) return null;
 
     final doc = await _firestore.collection('schools').doc(uid).get();
@@ -48,6 +65,21 @@ class FirestoreService {
       return doc.data();
     }
     return null;
+  }
+
+  /// סטרים לעדכונים חיים על מסמך בית הספר (למשל שם מנהל).
+  Stream<Map<String, dynamic>?> getSchoolStream() async* {
+    var uid = _currentUserId;
+    uid ??= await _authService.ensureUserIdReady();
+    uid ??= AuthState.verifiedUid;
+    if (uid == null) {
+      yield null;
+      return;
+    }
+    await for (final snapshot
+        in _firestore.collection('schools').doc(uid).snapshots()) {
+      yield snapshot.data();
+    }
   }
 
   /// מעלה לוגו ל-Storage ומעדכן את מסמך בית הספר ב־logoUrl. מחזיר את ה-URL.
@@ -480,6 +512,35 @@ class FirestoreService {
     }
   }
 
+  /// מחזיר מפה של insightId -> Action לכל הפעולות שיש להן insightId.
+  /// משמש לסינון היגדים: היגד מוסתר אם יש משימה מקושרת (בוצעה או פחות מחודש עבר).
+  /// היגד מופיע מחדש אם עבר חודש והמשימה לא בוצעה.
+  Future<Map<String, Action>> getActionsLinkedToInsights() async {
+    if (_currentUserId == null) return {};
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    final result = <String, Action>{};
+    for (final teacherDoc in teachersSnapshot.docs) {
+      final actionsSnapshot = await teacherDoc.reference
+          .collection('actions')
+          .get();
+
+      for (final actionDoc in actionsSnapshot.docs) {
+        final data = actionDoc.data();
+        final insightId = data['insightId'] as String?;
+        if (insightId != null && insightId.isNotEmpty) {
+          result[insightId] = Action.fromMap(actionDoc.id, data);
+        }
+      }
+    }
+    return result;
+  }
+
   Future<void> updateAction(String teacherId, Action action) async {
     final uid = await _requireUserId();
     await _firestore
@@ -533,8 +594,8 @@ class FirestoreService {
 
   Future<ManagerSettings> getManagerSettings() async {
     var uid = _currentUserId;
-    if (uid == null) uid = await _authService.ensureUserIdReady();
-    if (uid == null) uid = AuthState.verifiedUid;
+    uid ??= await _authService.ensureUserIdReady();
+    uid ??= AuthState.verifiedUid;
     if (uid == null) return const ManagerSettings();
 
     final doc = await _firestore

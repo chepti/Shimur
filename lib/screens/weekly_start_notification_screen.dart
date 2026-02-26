@@ -5,7 +5,8 @@ import '../models/teacher.dart';
 import '../services/firestore_service.dart';
 import 'teacher_details_screen.dart';
 
-/// מסך דוגמא: התראה לתחילת שבוע – פגישות מומלצות, מילים טובות, העתקה למזכירה, תובנות.
+/// מסך התראה לתחילת שבוע – פגישות מומלצות, מילים טובות, העתקה למזכירה, תובנות.
+/// ההמלצות מבוססות על נתונים אמיתיים: עומס, תאריך אינטראקציה אחרונה, ציוני גאלופ Q12, מגמת מצב רוח.
 class WeeklyStartNotificationScreen extends StatefulWidget {
   const WeeklyStartNotificationScreen({super.key});
 
@@ -18,13 +19,6 @@ class _WeeklyStartNotificationScreenState
     extends State<WeeklyStartNotificationScreen> {
   final _firestoreService = FirestoreService();
   final _random = Random();
-
-  // דוגמאות לסיבות פגישה
-  static const List<String> _meetReasons = [
-    'תקופת עומס מתקרבת – כדאי לתאם ציפיות',
-    'סיים/ה פרויקט – הזדמנות לשיחה',
-    'לפי תדירות שהוגדרה בתחילת השנה',
-  ];
 
   // היגדים ממדדי מעורבות (גאלופ Q12) – להצגה אקראית
   static const List<String> _engagementStatements = [
@@ -55,50 +49,121 @@ class _WeeklyStartNotificationScreenState
     _loadAndBuildSuggestions();
   }
 
+  /// מחזיר סיבה לפגישה מבוססת נתונים אמיתיים של המורה.
+  String _meetReasonFromData(Teacher t) {
+    if (t.busyReason != null && t.busyReason!.trim().isNotEmpty) {
+      return '${t.busyReason!.trim()} – כדאי לתאם ציפיות';
+    }
+    if (t.busySeason != null && t.busySeason!.trim().isNotEmpty) {
+      return 'תקופת עומס מתקרבת – כדאי לתאם ציפיות';
+    }
+    if (t.nextActionDate != null || t.nextActionType != null) {
+      return 'לפי תדירות שהוגדרה בתחילת השנה';
+    }
+    final q11 = t.engagementItemScores['q11'];
+    if (q11 != null && q11 <= 3) {
+      return 'דיברו איתי על ההתקדמות שלי – הזדמנות לשיחה';
+    }
+    if (t.moodTrend == 'down') {
+      return 'מגמת ירידה – כדאי לשיחה';
+    }
+    final last = t.lastInteractionDate;
+    if (last == null) {
+      return 'לא הייתה אינטראקציה מתועדת – שווה לבדוק';
+    }
+    final daysSince = DateTime.now().difference(last).inDays;
+    if (daysSince > 14) {
+      return 'לא הייתה אינטראקציה ממושכת – שווה לבדוק';
+    }
+    return 'לפי תדירות שהוגדרה בתחילת השנה';
+  }
+
   Future<void> _loadAndBuildSuggestions() async {
     setState(() => _isLoading = true);
     final teachers = await _firestoreService.getTeachersStream().first;
     if (!mounted) return;
 
-    // דוגמא: אם יש מורים – בוחרים מהם; אחרת דוגמאות סטטיות
     final meetCount = 3;
     final kindWordCount = 7;
 
     List<_MeetSuggestion> meets = [];
     List<Teacher> kindWords = [];
 
-    if (teachers.length >= meetCount + kindWordCount) {
-      final shuffled = List<Teacher>.from(teachers)..shuffle(_random);
-      for (int i = 0; i < meetCount && i < shuffled.length; i++) {
-        meets.add(_MeetSuggestion(
-          teacher: shuffled[i],
-          reason: _meetReasons[i % _meetReasons.length],
+    final realTeachers = teachers.where((t) => !t.id.startsWith('demo')).toList();
+
+    if (realTeachers.isNotEmpty) {
+      // פגישות: מורים עם סיבה מבוססת נתונים – ממוינים לפי עדיפות
+      final meetCandidates = <_MeetSuggestion>[];
+      for (final t in realTeachers) {
+        meetCandidates.add(_MeetSuggestion(
+          teacher: t,
+          reason: _meetReasonFromData(t),
         ));
       }
-      final rest = shuffled.skip(meetCount).toList();
-      for (int i = 0; i < kindWordCount && i < rest.length; i++) {
-        kindWords.add(rest[i]);
+      // עדיפות: עומס > nextAction > q11 נמוך > mood down > lastInteraction ישן > fallback
+      meetCandidates.sort((a, b) {
+        int score(_MeetSuggestion s) {
+          final t = s.teacher;
+          if (t.busyReason != null && t.busyReason!.trim().isNotEmpty) return 100;
+          if (t.busySeason != null && t.busySeason!.trim().isNotEmpty) return 90;
+          if (t.nextActionDate != null || t.nextActionType != null) return 80;
+          if ((t.engagementItemScores['q11'] ?? 6) <= 3) return 70;
+          if (t.moodTrend == 'down') return 60;
+          if (t.lastInteractionDate == null) return 50;
+          final days = DateTime.now().difference(t.lastInteractionDate!).inDays;
+          if (days > 14) return 40;
+          return 10;
+        }
+        return score(b).compareTo(score(a));
+      });
+      meets = meetCandidates.take(meetCount).toList();
+
+      // מילים טובות: מורים עם ציון נמוך בהכרה (q4) או ללא אינטראקציה ממושכת
+      final kindWordCandidates = <({Teacher t, int score})>[];
+      for (final t in realTeachers) {
+        if (meets.any((m) => m.teacher.id == t.id)) continue; // לא להכפיל
+        int s = 0;
+        final q4 = t.engagementItemScores['q4'];
+        if (q4 != null && q4 <= 3) s += 50;
+        if (t.moodTrend == 'down') s += 30;
+        if (t.lastInteractionDate == null) s += 20;
+        else {
+          final days = DateTime.now().difference(t.lastInteractionDate!).inDays;
+          if (days > 14) s += 25;
+        }
+        if (s > 0) kindWordCandidates.add((t: t, score: s));
       }
-    } else {
-      // דוגמאות סטטיות כשאין מספיק מורים
+      kindWordCandidates.sort((a, b) => b.score.compareTo(a.score));
+      kindWords = kindWordCandidates.map((e) => e.t).take(kindWordCount).toList();
+      if (kindWords.length < kindWordCount) {
+        final usedIds = {...meets.map((m) => m.teacher.id), ...kindWords.map((t) => t.id)};
+        final rest = realTeachers.where((t) => !usedIds.contains(t.id)).toList()..shuffle(_random);
+        for (final t in rest) {
+          if (kindWords.length >= kindWordCount) break;
+          kindWords.add(t);
+        }
+      }
+    }
+
+    if (meets.isEmpty || kindWords.length < kindWordCount) {
+      // דוגמאות סטטיות כשאין מספיק מורים אמיתיים
       final demoNamesMeet = ['רחל לוי', 'דוד כהן', 'מיכל אברהם'];
       final demoNamesKind = [
-        'שרה גולדמן',
-        'יוסי רוזן',
-        'נעמי ברק',
-        'אלי שמעון',
-        'רונית דוד',
-        'אבי מלכה',
-        'תמר נחום',
+        'שרה גולדמן', 'יוסי רוזן', 'נעמי ברק', 'אלי שמעון',
+        'רונית דוד', 'אבי מלכה', 'תמר נחום',
       ];
-      for (int i = 0; i < meetCount; i++) {
-        meets.add(_MeetSuggestion(
-          teacher: _demoTeacher(demoNamesMeet[i], 'demo-meet-$i'),
-          reason: _meetReasons[i % _meetReasons.length],
-        ));
+      if (meets.isEmpty) {
+        for (var i = 0; i < meetCount; i++) {
+          meets.add(_MeetSuggestion(
+            teacher: _demoTeacher(demoNamesMeet[i], 'demo-meet-$i'),
+            reason: 'דוגמא – הוסף מורים במערכת כדי לראות המלצות מבוססות נתונים',
+          ));
+        }
       }
-      for (int i = 0; i < kindWordCount; i++) {
-        kindWords.add(_demoTeacher(demoNamesKind[i], 'demo-kind-$i'));
+      if (kindWords.length < kindWordCount) {
+        for (var i = kindWords.length; i < kindWordCount && i < demoNamesKind.length; i++) {
+          kindWords.add(_demoTeacher(demoNamesKind[i], 'demo-kind-$i'));
+        }
       }
     }
 
@@ -148,11 +213,6 @@ class _WeeklyStartNotificationScreenState
     for (var s in _meetSuggestions) {
       buffer.writeln('• ${s.teacher.name} – ${s.reason}');
     }
-    buffer.writeln('');
-    buffer.writeln('מילים טובות מומלצות השבוע:');
-    for (var t in _kindWordSuggestions) {
-      buffer.writeln('• ${t.name}');
-    }
     Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,10 +245,10 @@ class _WeeklyStartNotificationScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildMeetSection(),
+                      const SizedBox(height: 16),
+                      _buildCopyButton(),
                       const SizedBox(height: 20),
                       _buildKindWordSection(),
-                      const SizedBox(height: 20),
-                      _buildCopyButton(),
                       const SizedBox(height: 24),
                       _buildInsightsSection(),
                     ],
@@ -225,7 +285,7 @@ class _WeeklyStartNotificationScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              '3 מורים שכדאי לתאם איתם פגישה',
+              '${_meetSuggestions.length} מורים שכדאי לתאם איתם פגישה',
               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
@@ -285,7 +345,7 @@ class _WeeklyStartNotificationScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              '7 מורים שכדאי לתת להם מילה טובה',
+              '${_kindWordSuggestions.length} מורים שכדאי לתת להם מילה טובה',
               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
             ),
             const SizedBox(height: 12),
@@ -311,7 +371,7 @@ class _WeeklyStartNotificationScreenState
     return OutlinedButton.icon(
       onPressed: _copyMeetingsToSecretary,
       icon: const Icon(Icons.copy),
-      label: const Text('העתק למזכירה – פגישות ומילים טובות'),
+      label: const Text('העתק למזכירה – פגישות'),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
         side: const BorderSide(color: Color(0xFF11a0db)),

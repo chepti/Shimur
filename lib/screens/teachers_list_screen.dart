@@ -23,9 +23,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   void initState() {
     super.initState();
     _firestoreService.getManagerSettings().then((s) {
-      if (mounted) {
-        setState(() => _settings = s);
-      }
+      if (mounted) setState(() => _settings = s);
     });
   }
 
@@ -100,49 +98,55 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     ? needAttentionList
                     : needAttentionList.take(limit).toList();
 
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildWelcomeHeader(context),
-                const SizedBox(height: 16),
-                _buildGoodWordArea(
-                  context: context,
-                  teachers: teachers,
-                  dailyGoal: _settings.goalsGoodWordsPerDay > 0
-                      ? _settings.goalsGoodWordsPerDay
-                      : 10,
-                ),
-                if (displayedNeedAttention.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text(
-                    'המורים שלי',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+            return StreamBuilder<Map<String, dynamic>?>(
+              stream: _firestoreService.getSchoolStream(),
+              builder: (context, schoolSnapshot) {
+                final managerName = schoolSnapshot.data?['managerName'] as String?;
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildWelcomeHeader(context, managerName),
+                    const SizedBox(height: 16),
+                    _buildGoodWordArea(
+                      context: context,
+                      teachers: teachers,
+                      dailyGoal: _settings.goalsGoodWordsPerDay > 0
+                          ? _settings.goalsGoodWordsPerDay
+                          : 10,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...displayedNeedAttention.map(
-                    (teacher) => TeacherCard(
-                      teacher: teacher,
-                      actionsCount: 0,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TeacherDetailsScreen(
-                              teacherId: teacher.id,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                const SizedBox(height: 80),
-              ],
+                    if (displayedNeedAttention.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'המורים שלי',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...displayedNeedAttention.map(
+                        (teacher) => TeacherCard(
+                          teacher: teacher,
+                          actionsCount: 0,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TeacherDetailsScreen(
+                                  teacherId: teacher.id,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    const SizedBox(height: 80),
+                  ],
+                );
+              },
             );
               },
             ),
@@ -151,12 +155,15 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   }
 
   /// כותרת פתיחה אישית למנהל/ת
-  Widget _buildWelcomeHeader(BuildContext context) {
+  Widget _buildWelcomeHeader(BuildContext context, [String? managerNameFromSchool]) {
     final authService = AuthService();
     final user = authService.currentUser;
-    final rawName = user?.displayName ?? user?.email?.split('@').first;
+    final displayName = (managerNameFromSchool != null && managerNameFromSchool.isNotEmpty)
+        ? managerNameFromSchool
+        : user?.displayName ??
+            (user?.email != null ? user!.email!.split('@').first : null);
     final managerName =
-        (rawName != null && rawName.isNotEmpty) ? rawName : 'מנהל/ת';
+        (displayName != null && displayName.isNotEmpty) ? displayName : 'מנהל/ת';
 
     final hour = DateTime.now().hour;
     final greetingTime =

@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _schoolSymbolController = TextEditingController();
   final _schoolNameController = TextEditingController();
+  final _managerNameController = TextEditingController();
   final _uidController = TextEditingController();
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
@@ -28,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     _schoolSymbolController.dispose();
     _schoolNameController.dispose();
+    _managerNameController.dispose();
     _uidController.dispose();
     super.dispose();
   }
@@ -75,6 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await _firestoreService.createSchool(
           _schoolSymbolController.text.trim(),
           _schoolNameController.text.trim(),
+          managerName: _managerNameController.text.trim().isNotEmpty
+              ? _managerNameController.text.trim()
+              : null,
         );
         
         if (mounted) {
@@ -294,6 +299,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _managerNameController,
+                        decoration: InputDecoration(
+                          labelText: 'שם המנהל/ת',
+                          prefixIcon: const Icon(Icons.person),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 24),

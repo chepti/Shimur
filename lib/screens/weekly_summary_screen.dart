@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/action.dart' as models;
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../widgets/hebrew_gregorian_date.dart';
 import 'teacher_details_screen.dart';
 
 /// מסך סיכום שבוע – התראה ליום שישי.
@@ -754,14 +755,15 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   ),
                 ),
                 const Text('7 אקראיים', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                if (availableInsights.length > 7)
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'רענן להחליף ל-7 אחרים',
-                    onPressed: () {
-                      setState(() => _pickRandomInsights());
-                    },
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'הצג היגדים אחרים',
+                  onPressed: availableInsights.isEmpty
+                      ? null
+                      : () {
+                          setState(() => _pickRandomInsights());
+                        },
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -769,6 +771,14 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
               'מידע מהשאלון והערות המורים. סמן היגדים שאתה רוצה להפוך לפעולה – יוצגו פעולות מוצעות.',
               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
             ),
+            if (availableInsights.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () => setState(() => _pickRandomInsights()),
+                icon: const Icon(Icons.swap_horiz, size: 18),
+                label: const Text('הצג היגדים אחרים'),
+              ),
+            ],
             const SizedBox(height: 12),
             if (insights.isEmpty)
               Padding(
@@ -827,7 +837,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                   textDirection: TextDirection.rtl,
                   children: insight.suggestedActions.map((action) => ActionChip(
                     label: Text(action),
-                    onPressed: () => _createTaskFromInsight(insight, action),
+                    onPressed: () => _showTaskModalSheet(insight, action),
                   )).toList(),
                 ),
               ],
@@ -838,18 +848,149 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     );
   }
 
-  /// יוצר משימה להשבוע ישירות – ההיגד נעלם מהרשימה.
-  Future<void> _createTaskFromInsight(_EngagementInsight insight, String actionType) async {
+  bool _taskModalSaving = false;
+
+  /// פותח חלונית עם פרטי המשימה – המנהל יכול להוסיף הערות או לשמור מיד.
+  void _showTaskModalSheet(_EngagementInsight insight, String actionType) {
     final now = DateTime.now();
     final daysSinceSunday = now.weekday == 7 ? 0 : now.weekday;
     final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysSinceSunday));
     final dateThisWeek = startOfWeek.add(const Duration(days: 3)); // יום רביעי בשבוע
 
+    final notesController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: EdgeInsets.only(
+            right: 20,
+            left: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'משימה להשבוע',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 12),
+              _buildTaskDetailRow('מורה:', insight.teacherName),
+              _buildTaskDetailRow('פעולה:', actionType),
+              _buildTaskDetailRow('תאריך:', null, date: dateThisWeek),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'הערות (אופציונלי)',
+                  hintText: 'כמה מילים נוספות...',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                maxLines: 2,
+                textAlign: TextAlign.right,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('ביטול'),
+                  ),
+                  const SizedBox(width: 12),
+                  StatefulBuilder(
+                    builder: (ctx2, setModalState) {
+                      return ElevatedButton(
+                        onPressed: _taskModalSaving
+                            ? null
+                            : () async {
+                                setModalState(() => _taskModalSaving = true);
+                                await _saveTaskFromModal(
+                                  ctx,
+                                  insight: insight,
+                                  actionType: actionType,
+                                  dateThisWeek: dateThisWeek,
+                                  notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                                );
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF11a0db),
+                        ),
+                        child: _taskModalSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('שמור משימה'),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => notesController.dispose());
+  }
+
+  Widget _buildTaskDetailRow(String label, String? value, {DateTime? date}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        textDirection: TextDirection.rtl,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(label, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700])),
+          ),
+          Expanded(
+            child: date != null
+                ? HebrewGregorianDateText(date: date)
+                : Text(value ?? '', textAlign: TextAlign.right),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// שומר את המשימה – מעדכן מצב מקומית בלי לטעון מחדש את העמוד.
+  Future<void> _saveTaskFromModal(
+    BuildContext modalContext, {
+    required _EngagementInsight insight,
+    required String actionType,
+    required DateTime dateThisWeek,
+    String? notes,
+  }) async {
     final action = models.Action(
       id: '',
       type: actionType,
       date: dateThisWeek,
-      notes: null,
+      notes: notes,
       completed: false,
       createdAt: DateTime.now(),
       insightId: insight.id,
@@ -857,14 +998,27 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
 
     try {
       await _firestoreService.addAction(insight.teacherId, action);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('נוצרה משימה להשבוע')),
-        );
-        await _load(); // טעינה מחדש – ההיגד ייעלם (יש משימה מקושרת)
-      }
+      if (!mounted) return;
+      Navigator.pop(modalContext);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('נוצרה משימה להשבוע')),
+      );
+      // עדכון מקומי – בלי טעינה מחדש, בלי גלילה להתחלה
+      setState(() {
+        _taskModalSaving = false;
+        _linkedActions[insight.id] = action;
+        _selectedInsightIds.remove(insight.id);
+        _displayedInsightIds.remove(insight.id);
+        final all = _buildEngagementInsights();
+        final available = all.where((i) => _shouldShowInsight(i.id) && !_displayedInsightIds.contains(i.id)).toList();
+        if (available.isNotEmpty) {
+          final replacement = available[_random.nextInt(available.length)];
+          _displayedInsightIds.add(replacement.id);
+        }
+      });
     } catch (e) {
       if (mounted) {
+        setState(() => _taskModalSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('שגיאה: $e')),
         );

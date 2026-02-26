@@ -1,3 +1,5 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -333,11 +335,11 @@ class _CreateEditExternalSurveyScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
-                const Icon(Icons.image, color: Color(0xFF11a0db), size: 22),
-                const SizedBox(width: 8),
-                const Expanded(
+                Icon(Icons.image, color: Color(0xFF11a0db), size: 22),
+                SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     'לוגו השאלון',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -371,18 +373,53 @@ class _CreateEditExternalSurveyScreenState
                   onPressed: _logoUploading || widget.survey == null
                       ? null
                       : () async {
-                          final picker = ImagePicker();
-                          final xfile = await picker.pickImage(
-                            source: ImageSource.gallery,
-                            maxWidth: 800,
-                            imageQuality: 85,
-                          );
-                          if (xfile == null || !mounted) return;
                           setState(() => _logoUploading = true);
                           try {
-                            final bytes = await xfile.readAsBytes();
-                            final contentType =
-                                xfile.mimeType ?? 'image/jpeg';
+                            Uint8List? bytes;
+                            String contentType = 'image/jpeg';
+
+                            if (kIsWeb) {
+                              final result = await FilePicker.platform.pickFiles(
+                                type: FileType.image,
+                                withData: true,
+                              );
+                              if (result == null || result.files.isEmpty || !mounted) {
+                                setState(() => _logoUploading = false);
+                                return;
+                              }
+                              final file = result.files.first;
+                              bytes = file.bytes;
+                              if (bytes == null) {
+                                setState(() => _logoUploading = false);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('לא ניתן לקרוא את הקובץ')),
+                                  );
+                                }
+                                return;
+                              }
+                              final ext = file.extension?.toLowerCase() ?? 'jpg';
+                              contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+                            } else {
+                              final picker = ImagePicker();
+                              final xfile = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 800,
+                                imageQuality: 85,
+                              );
+                              if (xfile == null || !mounted) {
+                                setState(() => _logoUploading = false);
+                                return;
+                              }
+                              bytes = await xfile.readAsBytes();
+                              contentType = xfile.mimeType ?? 'image/jpeg';
+                            }
+
+                            if (!mounted) {
+                              setState(() => _logoUploading = false);
+                              return;
+                            }
+
                             final url = await _firestoreService
                                 .uploadExternalSurveyLogo(
                               widget.survey!.id,

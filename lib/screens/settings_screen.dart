@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
@@ -341,18 +343,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_logoUploading || !mounted) return;
     setState(() => _logoUploading = true);
     try {
-      final picker = ImagePicker();
-      final xfile = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        imageQuality: 85,
-      );
-      if (xfile == null || !mounted) {
+      Uint8List? bytes;
+      String contentType = 'image/jpeg';
+
+      if (kIsWeb) {
+        // file_picker עובד אמין ב־Web (image_picker גורם ל־MissingPluginException)
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          withData: true,
+        );
+        if (result == null || result.files.isEmpty || !mounted) {
+          setState(() => _logoUploading = false);
+          return;
+        }
+        final file = result.files.first;
+        bytes = file.bytes;
+        if (bytes == null) {
+          setState(() => _logoUploading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('לא ניתן לקרוא את הקובץ')),
+            );
+          }
+          return;
+        }
+        final ext = file.extension?.toLowerCase() ?? 'jpg';
+        contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      } else {
+        final picker = ImagePicker();
+        final xfile = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 800,
+          imageQuality: 85,
+        );
+        if (xfile == null || !mounted) {
+          setState(() => _logoUploading = false);
+          return;
+        }
+        bytes = await xfile.readAsBytes();
+        contentType = xfile.mimeType ?? 'image/jpeg';
+      }
+
+      if (!mounted) {
         setState(() => _logoUploading = false);
         return;
       }
-      final bytes = await xfile.readAsBytes();
-      final contentType = xfile.mimeType ?? 'image/jpeg';
+
       final url = await _firestoreService.uploadSchoolLogo(bytes, contentType);
       if (mounted) {
         setState(() {

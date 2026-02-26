@@ -9,6 +9,8 @@ class ManagerSettings {
   final int ruleMeetEducatorsMonths;
   /// כל כמה חודשים לפגוש בעלי תפקידים (למשל 1 = פעם בחודש)
   final int ruleMeetRoleHoldersMonths;
+  /// כל כמה חודשים לפגוש מורים חדשים (מחדל 3 = פעם ב־3 חודשים)
+  final int ruleMeetNewTeachersMonths;
 
   /// יום שבוע להתראה לתחילת שבוע (1=שני … 7=ראשון). מחדל 7 (ראשון)
   final int notificationStartWeekWeekday;
@@ -39,6 +41,7 @@ class ManagerSettings {
     this.goalsGoodWordsPerWeek = 40,
     this.ruleMeetEducatorsMonths = 2,
     this.ruleMeetRoleHoldersMonths = 1,
+    this.ruleMeetNewTeachersMonths = 3,
     this.notificationStartWeekWeekday = 7,
     this.notificationStartWeekHour = 7,
     this.notificationStartWeekMinute = 40,
@@ -59,6 +62,7 @@ class ManagerSettings {
       'goalsGoodWordsPerWeek': goalsGoodWordsPerWeek,
       'ruleMeetEducatorsMonths': ruleMeetEducatorsMonths,
       'ruleMeetRoleHoldersMonths': ruleMeetRoleHoldersMonths,
+      'ruleMeetNewTeachersMonths': ruleMeetNewTeachersMonths,
       'notificationStartWeekWeekday': notificationStartWeekWeekday,
       'notificationStartWeekHour': notificationStartWeekHour,
       'notificationStartWeekMinute': notificationStartWeekMinute,
@@ -94,6 +98,7 @@ class ManagerSettings {
       goalsGoodWordsPerWeek: _toInt(map['goalsGoodWordsPerWeek'], 40),
       ruleMeetEducatorsMonths: _toInt(map['ruleMeetEducatorsMonths'], 2),
       ruleMeetRoleHoldersMonths: _toInt(map['ruleMeetRoleHoldersMonths'], 1),
+      ruleMeetNewTeachersMonths: _toInt(map['ruleMeetNewTeachersMonths'], 3),
       notificationStartWeekWeekday: _toInt(map['notificationStartWeekWeekday'], 7),
       notificationStartWeekHour: _toInt(map['notificationStartWeekHour'], 7),
       notificationStartWeekMinute: _toInt(map['notificationStartWeekMinute'], 40),
@@ -114,6 +119,7 @@ class ManagerSettings {
     int? goalsGoodWordsPerWeek,
     int? ruleMeetEducatorsMonths,
     int? ruleMeetRoleHoldersMonths,
+    int? ruleMeetNewTeachersMonths,
     int? notificationStartWeekWeekday,
     int? notificationStartWeekHour,
     int? notificationStartWeekMinute,
@@ -132,6 +138,7 @@ class ManagerSettings {
       goalsGoodWordsPerWeek: goalsGoodWordsPerWeek ?? this.goalsGoodWordsPerWeek,
       ruleMeetEducatorsMonths: ruleMeetEducatorsMonths ?? this.ruleMeetEducatorsMonths,
       ruleMeetRoleHoldersMonths: ruleMeetRoleHoldersMonths ?? this.ruleMeetRoleHoldersMonths,
+      ruleMeetNewTeachersMonths: ruleMeetNewTeachersMonths ?? this.ruleMeetNewTeachersMonths,
       notificationStartWeekWeekday: notificationStartWeekWeekday ?? this.notificationStartWeekWeekday,
       notificationStartWeekHour: notificationStartWeekHour ?? this.notificationStartWeekHour,
       notificationStartWeekMinute: notificationStartWeekMinute ?? this.notificationStartWeekMinute,

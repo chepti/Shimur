@@ -14,6 +14,7 @@ const Color _AccentAmber = Color(0xFFFAA41A);
 const Color _AccentLime = Color(0xFFB2D234);
 const Color _AccentGreen = Color(0xFF40AE49);
 const double _CardRadius = 20;
+const double _notificationFieldHeight = 48;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -48,15 +49,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _managerNameFocusNode.addListener(() {
-      if (!_managerNameFocusNode.hasFocus) _saveManagerName();
-    });
+    _managerNameFocusNode.addListener(_onManagerNameFocusChange);
     _loadSettings();
+  }
+
+  void _onManagerNameFocusChange() {
+    if (!_managerNameFocusNode.hasFocus) _saveManagerName();
   }
 
   @override
   void dispose() {
-    _managerNameFocusNode.removeListener(_saveManagerName);
+    _managerNameFocusNode.removeListener(_onManagerNameFocusChange);
     _managerNameFocusNode.dispose();
     _managerNameController.dispose();
     super.dispose();
@@ -116,6 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
+                clipBehavior: Clip.none,
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildProfileCardWithLogo(),
@@ -182,6 +186,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// כרטיס פרופיל – לוגו משמאל עם עיפרון להעלאה, שם מנהל ואימייל מימין.
   Widget _buildProfileCardWithLogo() {
     return Card(
+      clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
@@ -198,6 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       TextFormField(
                         controller: _managerNameController,
+                        focusNode: _managerNameFocusNode,
                         decoration: InputDecoration(
                           labelText: 'שם המנהל/ת',
                           isDense: true,
@@ -210,7 +216,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         onEditingComplete: _saveManagerName,
-                        onSubmitted: (_) => _saveManagerName(),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -401,6 +406,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildGoalsCard() {
     return Card(
+      clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
@@ -485,6 +491,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildRulesCard() {
     return Card(
+      clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
@@ -509,7 +516,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 const Expanded(child: Text('פגוש מחנכים')),
                 SizedBox(
-                  width: 100,
+                  width: 120,
                   child: DropdownButtonFormField<int>(
                     initialValue: _settings.ruleMeetEducatorsMonths,
                     decoration: InputDecoration(
@@ -541,7 +548,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 const Expanded(child: Text('פגוש בעלי תפקידים')),
                 SizedBox(
-                  width: 100,
+                  width: 120,
                   child: DropdownButtonFormField<int>(
                     initialValue: _settings.ruleMeetRoleHoldersMonths,
                     decoration: InputDecoration(
@@ -566,6 +573,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Icon(Icons.person_add, color: _AccentAmber, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('פגוש מורים חדשים')),
+                SizedBox(
+                  width: 120,
+                  child: DropdownButtonFormField<int>(
+                    initialValue: _settings.ruleMeetNewTeachersMonths,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    items: [1, 2, 3, 4, 6].map((m) {
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text(m == 1 ? 'פעם בחודש' : 'פעם ב־$m חודשים'),
+                      );
+                    }).toList(),
+                    onChanged: _isSaving
+                        ? null
+                        : (v) {
+                            if (v != null) {
+                              _saveSettings(_settings.copyWith(ruleMeetNewTeachersMonths: v));
+                            }
+                          },
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -574,6 +613,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildNotificationsCard() {
     return Card(
+      clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(
@@ -643,14 +683,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 13)),
         const SizedBox(height: 6),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              width: 100,
+              height: _notificationFieldHeight,
+              width: 110,
               child: DropdownButtonFormField<int>(
                 initialValue: weekday,
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 items: _weekdayNames
@@ -664,10 +706,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(width: 12),
             SizedBox(
-              width: 90,
+              height: _notificationFieldHeight,
+              width: 100,
               child: TextFormField(
                 initialValue: '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
                 decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   labelText: 'שעה',
                   hintText: '07:40',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -701,6 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MapEntry('10', '10 הכי בולטים'),
     ];
     return Card(
+      clipBehavior: Clip.none,
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_CardRadius)),
       child: Padding(

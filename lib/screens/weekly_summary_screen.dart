@@ -243,6 +243,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          _buildPerfectWeekBanner(),
                           _buildSwipeSection(),
                           const SizedBox(height: 24),
                           _buildMoodSection(),
@@ -252,6 +253,101 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                       ),
                     ),
                   ),
+      ),
+    );
+  }
+
+  /// הישג "שבוע מושלם" – כל הצוות סווג, עדכון סטטוס, 7 היגדים לפעולה
+  Widget _buildPerfectWeekBanner() {
+    final allClassified = _addressedIds.length + _notAddressedIds.length >= _teachers.length && _teachers.isNotEmpty;
+    final hasMoodUpdates = _moodUpdates.isNotEmpty;
+    final insightsToActions = _linkedActions.length >= 7;
+    final isPerfect = allClassified && hasMoodUpdates && insightsToActions;
+
+    if (!isPerfect) {
+      final remaining = <String>[];
+      if (!allClassified) remaining.add('סיווג כל הצוות');
+      if (!hasMoodUpdates) remaining.add('עדכון סטטוס רגשי');
+      if (!insightsToActions) remaining.add('הפיכת 7 היגדים לפעולות (${_linkedActions.length}/7)');
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          color: Colors.amber.withOpacity(0.08),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.emoji_events_outlined, color: Colors.amber[800], size: 22),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'שבוע מושלם',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'עוד ${remaining.length} צעד${remaining.length == 1 ? '' : 'ים'}: ${remaining.join(', ')}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: [
+                const Color(0xFF40AE49).withOpacity(0.15),
+                const Color(0xFF11a0db).withOpacity(0.08),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.emoji_events, color: Colors.amber[700], size: 36),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🎉 שבוע מושלם!',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2E7D32),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'כל הצוות סווג, סטטוס עודכן ו־7 היגדים הפכו לפעולות. כל הכבוד!',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -850,6 +946,16 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
 
   bool _taskModalSaving = false;
 
+  /// מחשב יום שישי הראשון בחודש הבא
+  static DateTime _firstFridayOfNextMonth() {
+    final now = DateTime.now();
+    var d = DateTime(now.year, now.month + 1, 1);
+    while (d.weekday != 5) {
+      d = d.add(const Duration(days: 1));
+    }
+    return d;
+  }
+
   /// פותח חלונית עם פרטי המשימה – המנהל יכול להוסיף הערות או לשמור מיד.
   void _showTaskModalSheet(_EngagementInsight insight, String actionType) {
     final now = DateTime.now();
@@ -861,8 +967,10 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     final dateThisWeek = fridayOfWeek.isBefore(today)
         ? startOfWeek.add(const Duration(days: 12)) // יום שישי בשבוע הבא
         : fridayOfWeek;
+    final dateNextMonth = _firstFridayOfNextMonth();
 
     final notesController = TextEditingController();
+    _taskModalDateState = {'type': 'next_week'};
 
     showModalBottomSheet(
       context: context,
@@ -902,65 +1010,147 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
               const SizedBox(height: 12),
               _buildTaskDetailRow('מורה:', insight.teacherName),
               _buildTaskDetailRow('פעולה:', actionType),
-              _buildTaskDetailRow('תאריך:', null, date: dateThisWeek),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(
-                  labelText: 'הערות (אופציונלי)',
-                  hintText: 'כמה מילים נוספות...',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Text(
+                  'תאריך:',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
+                  textAlign: TextAlign.right,
                 ),
-                maxLines: 2,
-                textAlign: TextAlign.right,
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('ביטול'),
-                  ),
-                  const SizedBox(width: 12),
-                  StatefulBuilder(
-                    builder: (ctx2, setModalState) {
-                      return ElevatedButton(
-                        onPressed: _taskModalSaving
-                            ? null
-                            : () async {
-                                setModalState(() => _taskModalSaving = true);
-                                await _saveTaskFromModal(
-                                  ctx,
-                                  insight: insight,
-                                  actionType: actionType,
-                                  dateThisWeek: dateThisWeek,
-                                  notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
-                                );
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF11a0db),
+              StatefulBuilder(
+                builder: (ctx2, setModalState) {
+                  String dateType = 'next_week';
+                  DateTime? customDate;
+                  void loadState() {
+                    final state = _taskModalDateState;
+                    dateType = state['type'] as String? ?? 'next_week';
+                    customDate = state['customDate'] as DateTime?;
+                  }
+                  loadState();
+
+                  DateTime resolveDate() {
+                    switch (dateType) {
+                      case 'next_month':
+                        return dateNextMonth;
+                      case 'custom':
+                        return customDate ?? dateThisWeek;
+                      default:
+                        return dateThisWeek;
+                    }
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          _DateChip(
+                            label: 'בשבוע הקרוב',
+                            selected: dateType == 'next_week',
+                            onTap: () {
+                              _taskModalDateState = {'type': 'next_week'};
+                              setModalState(() {});
+                            },
+                          ),
+                          _DateChip(
+                            label: 'בחודש הקרוב',
+                            selected: dateType == 'next_month',
+                            onTap: () {
+                              _taskModalDateState = {'type': 'next_month'};
+                              setModalState(() {});
+                            },
+                          ),
+                          _DateChip(
+                            label: 'אחר',
+                            selected: dateType == 'custom',
+                            onTap: () async {
+                              _taskModalDateState = {'type': 'custom', 'customDate': customDate};
+                              setModalState(() {});
+                              final picked = await showDatePicker(
+                                context: ctx2,
+                                initialDate: customDate ?? dateThisWeek,
+                                firstDate: today,
+                                lastDate: today.add(const Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                _taskModalDateState = {'type': 'custom', 'customDate': picked};
+                                setModalState(() {});
+                              }
+                            },
+                            trailing: dateType == 'custom' && customDate != null
+                                ? HebrewGregorianDateText(date: customDate!)
+                                : null,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'הערות (אופציונלי)',
+                          hintText: 'כמה מילים נוספות...',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
-                        child: _taskModalSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('שמור משימה'),
-                      );
-                    },
-                  ),
-                ],
+                        maxLines: 2,
+                        textAlign: TextAlign.right,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('ביטול'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: _taskModalSaving
+                                ? null
+                                : () async {
+                                    setModalState(() => _taskModalSaving = true);
+                                    await _saveTaskFromModal(
+                                      ctx,
+                                      insight: insight,
+                                      actionType: actionType,
+                                      dateThisWeek: resolveDate(),
+                                      notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF11a0db),
+                            ),
+                            child: _taskModalSaving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Text('שמור משימה'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
         ),
       ),
-    ).then((_) => notesController.dispose());
+    ).then((_) {
+      notesController.dispose();
+      _taskModalDateState = {};
+    });
   }
+
+  /// מצב בחירת תאריך במודאל – נשמר בין rebuilds
+  Map<String, dynamic> _taskModalDateState = {};
 
   Widget _buildTaskDetailRow(String label, String? value, {DateTime? date}) {
     return Padding(
@@ -1004,7 +1194,7 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
     try {
       await _firestoreService.addAction(insight.teacherId, action);
       if (!mounted) return;
-      Navigator.pop(modalContext);
+      if (modalContext.mounted) Navigator.pop(modalContext);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('נוצרה משימה להשבוע')),
       );
@@ -1050,4 +1240,51 @@ class _EngagementInsight {
     required this.description,
     required this.suggestedActions,
   });
+}
+
+/// צ'יפ לבחירת טווח תאריך במודאל משימה
+class _DateChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  const _DateChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF11a0db) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          textDirection: TextDirection.rtl,
+          children: [
+            if (trailing != null) ...[
+              trailing!,
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.grey[800],
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

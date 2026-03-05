@@ -389,6 +389,81 @@ class FirestoreService {
     return totalCount;
   }
 
+  /// ספירת מילים טובות בלבד היום (למדד היומי המדויק).
+  Future<int> getTodayGoodWordsCount() async {
+    if (_currentUserId == null) return 0;
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final startIso = startOfDay.toIso8601String();
+    final endIso = endOfDay.toIso8601String();
+
+    int count = 0;
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    for (var teacherDoc in teachersSnapshot.docs) {
+      final actionsSnapshot = await teacherDoc.reference
+          .collection('actions')
+          .where('completed', isEqualTo: true)
+          .where('date', isGreaterThanOrEqualTo: startIso)
+          .where('date', isLessThan: endIso)
+          .get();
+
+      for (var doc in actionsSnapshot.docs) {
+        final action = Action.fromMap(doc.id, doc.data());
+        if (_categorizeInteractionType(action.type) == 'good_word') {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /// רצף ימים עם לפחות התייחסות אחת (מילה טובה/דיבור/פגישה) – נספר אחורה מהיום.
+  Future<int> getReferralStreakDays() async {
+    if (_currentUserId == null) return 0;
+
+    final now = DateTime.now();
+    var checkDate = DateTime(now.year, now.month, now.day);
+    int streak = 0;
+
+    final teachersSnapshot = await _firestore
+        .collection('schools')
+        .doc(_currentUserId)
+        .collection('teachers')
+        .get();
+
+    while (true) {
+      final startIso = checkDate.toIso8601String();
+      final endIso = checkDate.add(const Duration(days: 1)).toIso8601String();
+      bool hasAction = false;
+
+      for (var teacherDoc in teachersSnapshot.docs) {
+        final actionsSnapshot = await teacherDoc.reference
+            .collection('actions')
+            .where('completed', isEqualTo: true)
+            .where('date', isGreaterThanOrEqualTo: startIso)
+            .where('date', isLessThan: endIso)
+            .limit(1)
+            .get();
+        if (actionsSnapshot.docs.isNotEmpty) {
+          hasAction = true;
+          break;
+        }
+      }
+
+      if (!hasAction) break;
+      streak++;
+      checkDate = checkDate.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
   /// מחזיר מזהי מורים שהייתה להם לפחות פעולה אחת (התייחסות מתועדת) השבוע הנוכחי (ראשון–שבת).
   Future<Set<String>> getTeacherIdsWithActionsInCurrentWeek() async {
     if (_currentUserId == null) return {};

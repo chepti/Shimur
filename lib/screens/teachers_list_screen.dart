@@ -18,6 +18,7 @@ class TeachersListScreen extends StatefulWidget {
 class _TeachersListScreenState extends State<TeachersListScreen> {
   final _firestoreService = FirestoreService();
   ManagerSettings _settings = const ManagerSettings();
+  int _goodWordAreaKey = 0;
 
   @override
   void initState() {
@@ -217,10 +218,15 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required List<Teacher> teachers,
     required int dailyGoal,
   }) {
-    return FutureBuilder<int>(
-      future: _firestoreService.getTodayCompletedActionsCount(),
+    return FutureBuilder<({int goodWords, int streak})>(
+      key: ValueKey('goodWordArea_$_goodWordAreaKey'),
+      future: Future.wait([
+        _firestoreService.getTodayGoodWordsCount(),
+        _firestoreService.getReferralStreakDays(),
+      ]).then((r) => (goodWords: r[0], streak: r[1])),
       builder: (context, snapshot) {
-        final completedToday = snapshot.data ?? 0;
+        final goodWords = snapshot.data?.goodWords ?? 0;
+        final streak = snapshot.data?.streak ?? 0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -324,21 +330,45 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            if (streak > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.local_fire_department, color: Colors.orange[700], size: 20),
+                    const SizedBox(width: 6),
+                    Text(
+                      'רצף $streak ימים עם התייחסות',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'התקדמות יומית',
+                    Text(
+                      goodWords >= dailyGoal && dailyGoal > 0
+                          ? '🎉 הגעת ליעד!'
+                          : 'התקדמות יומית',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
+                        color: goodWords >= dailyGoal && dailyGoal > 0
+                            ? const Color(0xFF40AE49)
+                            : null,
                       ),
                     ),
                     Text(
-                      '$completedToday / $dailyGoal מילים טובות',
+                      '$goodWords / $dailyGoal מילים טובות',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.grey,
@@ -361,7 +391,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                   )
                 else
                   _buildGoalProgressBar(
-                    completedToday,
+                    goodWords,
                     dailyGoal,
                   ),
               ],
@@ -664,7 +694,22 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
           ),
         );
       },
-    );
+    ).then((_) async {
+      if (!mounted) return;
+      setState(() => _goodWordAreaKey++);
+      final dailyGoal = _settings.goalsGoodWordsPerDay > 0 ? _settings.goalsGoodWordsPerDay : 10;
+      if (dailyGoal <= 0) return;
+      final count = await _firestoreService.getTodayGoodWordsCount();
+      if (count >= dailyGoal && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🎉 כל הכבוד! הגעת ליעד היומי של $dailyGoal מילים טובות!'),
+            backgroundColor: const Color(0xFF40AE49),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
   }
   
   Color _statusColor(String status) {

@@ -30,8 +30,8 @@ service cloud.firestore {
 
       // כללי אבטחה למורים
       match /teachers/{teacherId} {
-        // מנהל מחובר – גישה מלאה למורה
-        allow read, update, delete: if isManager();
+        // מנהל מחובר – גישה מלאה למורה (כולל יצירת מורה חדש)
+        allow read, create, update, delete: if isManager();
 
         // קריאת רשימת מורים מהטופס החיצוני (ללא התחברות).
         // המשמעות: מי שמחזיק בקישור של בית הספר יכול לראות שמות מורים בלבד.

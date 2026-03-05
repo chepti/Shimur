@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
-import '../utils/birthday_utils.dart';
 import 'status_indicator.dart';
 
 class TeacherCard extends StatelessWidget {
@@ -81,30 +80,6 @@ class TeacherCard extends StatelessWidget {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      if (teacher.birthday != null &&
-                          teacher.birthday!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.cake,
-                              size: 12,
-                              color: Colors.pink[300],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              BirthdayUtils.formatForDisplay(teacher.birthday),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
                         ),
                       ],
                     ],

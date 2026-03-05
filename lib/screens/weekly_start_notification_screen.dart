@@ -340,6 +340,11 @@ class _WeeklyStartNotificationScreenState
   }
 
   Widget _buildBirthdaysSection() {
+    final names = _birthdayTeachers.map((t) {
+      final days = BirthdayUtils.daysUntilBirthday(t.birthday) ?? 0;
+      final dayLabel = days == 0 ? 'היום' : days == 1 ? 'מחר' : 'בעוד $days ימים';
+      return '${t.name} ($dayLabel)';
+    }).join(', ');
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -365,8 +370,8 @@ class _WeeklyStartNotificationScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              '${_birthdayTeachers.length} מורים עם יום הולדת השבוע',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              names,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             ..._birthdayTeachers.map((t) {

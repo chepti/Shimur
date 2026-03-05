@@ -782,6 +782,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .toList();
     if (todayBirthdays.isEmpty) return const SizedBox.shrink();
 
+    final names = todayBirthdays.map((t) => t.name).join(', ');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -798,10 +799,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'היום יום ההולדת של:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[700],
+                  'היום יום ההולדת של: $names',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),

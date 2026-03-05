@@ -53,9 +53,7 @@ class _AddActionScreenState extends State<AddActionScreen> {
 
   Future<void> _showAiActionSuggestions() async {
     Teacher? teacher = widget.teacher;
-    if (teacher == null) {
-      teacher = await _firestoreService.getTeacher(widget.teacherId);
-    }
+    teacher ??= await _firestoreService.getTeacher(widget.teacherId);
     if (teacher == null) return;
 
     final (canUse, errorMsg) = await _firestoreService.canUseGemini();
@@ -94,9 +92,7 @@ class _AddActionScreenState extends State<AddActionScreen> {
 
   Future<void> _suggestDraft() async {
     Teacher? teacher = widget.teacher;
-    if (teacher == null) {
-      teacher = await _firestoreService.getTeacher(widget.teacherId);
-    }
+    teacher ??= await _firestoreService.getTeacher(widget.teacherId);
     if (teacher == null) return;
 
     final (canUse, errorMsg) = await _firestoreService.canUseGemini();

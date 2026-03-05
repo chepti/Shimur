@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:kosher_dart/kosher_dart.dart';
+import 'package:material_hebrew_date_picker/material_hebrew_date_picker.dart';
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../utils/birthday_utils.dart';
 
 class AddTeacherScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -34,6 +37,9 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
   final Set<String> _selectedMotivationStyles = {};
   // תובנות/סימני מעורבות (לפי גאלופ)
   final Set<String> _selectedEngagementSignals = {};
+  // יום הולדת – לועזי או עברי
+  String? _birthday;
+  bool _birthdayIsHebrew = false;
 
   @override
   void initState() {
@@ -53,6 +59,10 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       }
       _selectedMotivationStyles.addAll(teacher.motivationStyles);
       _selectedEngagementSignals.addAll(teacher.engagementSignals);
+      _birthday = teacher.birthday;
+      if (_birthday != null && _birthday!.startsWith('hebrew:')) {
+        _birthdayIsHebrew = true;
+      }
     }
   }
 
@@ -105,6 +115,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
           motivationStyles: _selectedMotivationStyles.toList(),
           engagementSignals: _selectedEngagementSignals.toList(),
           mobilePhone: phoneText.isEmpty ? null : phoneText,
+          birthday: _birthday,
         );
 
         await _firestoreService.addTeacher(teacher);
@@ -127,6 +138,7 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
           mobilePhone: phoneText.isEmpty ? null : phoneText,
           motivationStyles: _selectedMotivationStyles.toList(),
           engagementSignals: _selectedEngagementSignals.toList(),
+          birthday: _birthday,
         );
 
         await _firestoreService.updateTeacher(updatedTeacher);
@@ -219,6 +231,8 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
                     fillColor: Colors.white,
                   ),
                 ),
+                const SizedBox(height: 16),
+                _buildBirthdaySection(),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _roleController,
@@ -421,6 +435,96 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildBirthdaySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'יום הולדת',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ChoiceChip(
+              label: const Text('לועזי'),
+              selected: !_birthdayIsHebrew,
+              onSelected: (s) => setState(() => _birthdayIsHebrew = false),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('עברי'),
+              selected: _birthdayIsHebrew,
+              onSelected: (s) => setState(() => _birthdayIsHebrew = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () async {
+            if (_birthdayIsHebrew) {
+              final now = DateTime.now();
+              final jd = JewishDate.fromDateTime(now);
+              final firstDate = JewishDate()
+                ..setJewishDate(jd.getJewishYear() - 100, JewishDate.TISHREI, 1);
+              final lastDate = JewishDate()
+                ..setJewishDate(jd.getJewishYear() + 10, JewishDate.ELUL, 29);
+              final picked = await showMaterialHebrewDatePicker(
+                context: context,
+                initialDate: now,
+                firstDate: firstDate.getGregorianCalendar(),
+                lastDate: lastDate.getGregorianCalendar(),
+                hebrewFormat: true,
+              );
+              if (picked != null && mounted) {
+                final pjd = JewishDate.fromDateTime(picked);
+                setState(() {
+                  _birthday = BirthdayUtils.fromHebrew(
+                    pjd.getJewishMonth(),
+                    pjd.getJewishDayOfMonth(),
+                  );
+                });
+              }
+            } else {
+              final now = DateTime.now();
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: now,
+                firstDate: DateTime(now.year - 100),
+                lastDate: DateTime(now.year + 10),
+              );
+              if (picked != null && mounted) {
+                setState(() {
+                  _birthday = BirthdayUtils.fromGregorian(picked);
+                });
+              }
+            }
+          },
+          icon: const Icon(Icons.cake),
+          label: Text(
+            _birthday != null
+                ? BirthdayUtils.formatForDisplay(_birthday)
+                : 'בחרי תאריך יום הולדת',
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        if (_birthday != null)
+          TextButton(
+            onPressed: () => setState(() => _birthday = null),
+            child: const Text('הסר יום הולדת'),
+          ),
+      ],
+    );
   }
 
   List<Widget> _buildMoodStatusChips() {

@@ -45,6 +45,8 @@ class Teacher {
   /// מפתח = surveyInstanceId (למשל "2024-חנוכה-אקלים")
   /// ערך = מפה של תשובות: { "q1": 5, "q2": "תשובה טקסט", ... }
   final Map<String, Map<String, dynamic>> externalSurveys;
+  /// יום הולדת – פורמט "gregorian:MM-dd" או "hebrew:M-dd"
+  final String? birthday;
 
   Teacher({
     required this.id,
@@ -79,6 +81,7 @@ class Teacher {
     this.formToken,
     this.mobilePhone,
     this.externalSurveys = const {},
+    this.birthday,
   });
 
   Map<String, dynamic> toMap() {
@@ -115,6 +118,7 @@ class Teacher {
       'formToken': formToken,
       'mobilePhone': mobilePhone,
       'externalSurveys': externalSurveys,
+      'birthday': birthday,
     };
   }
 
@@ -185,6 +189,7 @@ class Teacher {
               ),
             )
           : const {},
+      birthday: map['birthday'] as String?,
     );
   }
 
@@ -219,6 +224,7 @@ class Teacher {
     String? formToken,
     String? mobilePhone,
     Map<String, Map<String, dynamic>>? externalSurveys,
+    String? birthday,
   }) {
     return Teacher(
       id: id,
@@ -256,6 +262,7 @@ class Teacher {
       formToken: formToken ?? this.formToken,
       mobilePhone: mobilePhone ?? this.mobilePhone,
       externalSurveys: externalSurveys ?? this.externalSurveys,
+      birthday: birthday ?? this.birthday,
     );
   }
 }

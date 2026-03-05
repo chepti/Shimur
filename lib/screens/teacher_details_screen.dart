@@ -6,6 +6,7 @@ import '../services/firestore_service.dart';
 import '../services/gemini_service.dart';
 import '../widgets/status_indicator.dart';
 import '../widgets/hebrew_gregorian_date.dart';
+import '../utils/birthday_utils.dart';
 import 'add_action_screen.dart';
 import 'add_teacher_screen.dart';
 import 'engagement_survey_screen.dart';
@@ -326,6 +327,14 @@ class _TeacherDetailsScreenState extends State<TeacherDetailsScreen> {
                             _buildInfoRow(
                               Icons.phone_android,
                               teacher.mobilePhone!,
+                            ),
+                          ],
+                          if (teacher.birthday != null &&
+                              teacher.birthday!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            _buildInfoRow(
+                              Icons.cake,
+                              'יום הולדת: ${BirthdayUtils.formatForDisplay(teacher.birthday)}',
                             ),
                           ],
                           const SizedBox(height: 12),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../utils/birthday_utils.dart';
 import 'teacher_details_screen.dart';
 
 /// מסך התראה לתחילת שבוע – פגישות מומלצות, מילים טובות, העתקה למזכירה, תובנות.
@@ -40,6 +41,7 @@ class _WeeklyStartNotificationScreenState
 
   List<_MeetSuggestion> _meetSuggestions = [];
   List<Teacher> _kindWordSuggestions = [];
+  List<Teacher> _birthdayTeachers = [];
   List<String> _randomInsights = [];
   bool _isLoading = true;
 
@@ -187,9 +189,23 @@ class _WeeklyStartNotificationScreenState
       insights.add(_insightTemplates[idx].replaceFirst('%s', name));
     }
 
+    // ימי הולדת השבוע (היום + 6 ימים)
+    final birthdayThisWeek = realTeachers
+        .where((t) =>
+            t.birthday != null &&
+            t.birthday!.isNotEmpty &&
+            BirthdayUtils.isBirthdayWithinDays(t.birthday, 6))
+        .toList();
+    birthdayThisWeek.sort((a, b) {
+      final da = BirthdayUtils.daysUntilBirthday(a.birthday) ?? 999;
+      final db = BirthdayUtils.daysUntilBirthday(b.birthday) ?? 999;
+      return da.compareTo(db);
+    });
+
     setState(() {
       _meetSuggestions = meets;
       _kindWordSuggestions = kindWords;
+      _birthdayTeachers = birthdayThisWeek;
       _randomInsights = insights;
       _isLoading = false;
     });
@@ -248,6 +264,10 @@ class _WeeklyStartNotificationScreenState
                       const SizedBox(height: 16),
                       _buildCopyButton(),
                       const SizedBox(height: 20),
+                      if (_birthdayTeachers.isNotEmpty) ...[
+                        _buildBirthdaysSection(),
+                        const SizedBox(height: 20),
+                      ],
                       _buildKindWordSection(),
                       const SizedBox(height: 24),
                       _buildInsightsSection(),
@@ -315,6 +335,70 @@ class _WeeklyStartNotificationScreenState
         ),
         trailing: Icon(Icons.chevron_left, color: Colors.grey[400]),
         onTap: () => _openTeacher(s.teacher),
+      ),
+    );
+  }
+
+  Widget _buildBirthdaysSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.cake, color: Colors.pink[300]),
+                const SizedBox(width: 8),
+                const Text(
+                  'ימי הולדת השבוע – ברכי והתייחסי!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_birthdayTeachers.length} מורים עם יום הולדת השבוע',
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 12),
+            ..._birthdayTeachers.map((t) {
+              final days = BirthdayUtils.daysUntilBirthday(t.birthday) ?? 0;
+              final dayLabel = days == 0
+                  ? 'היום!'
+                  : days == 1
+                      ? 'מחר'
+                      : 'בעוד $days ימים';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.pink.withValues(alpha: 0.2),
+                    child: Icon(Icons.cake, color: Colors.pink[300]),
+                  ),
+                  title: Text(
+                    t.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${BirthdayUtils.formatForDisplay(t.birthday)} – $dayLabel',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  trailing: Icon(Icons.chevron_left, color: Colors.grey[400]),
+                  onTap: () => _openTeacher(t),
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

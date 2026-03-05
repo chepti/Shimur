@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../utils/birthday_utils.dart';
 import '../widgets/status_indicator.dart';
 import 'teacher_details_screen.dart';
 import 'weekly_start_notification_screen.dart';
@@ -92,6 +93,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _buildNeedAttentionCard(context, needAttention),
                     const SizedBox(height: 24),
                   ],
+
+                  // ימי הולדת היום
+                  _buildBirthdaysCard(context, teachers),
 
                   // קיצורי דרך למסכי עומק
                   _buildWeeklyNotificationCard(context),
@@ -767,6 +771,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
     return score;
+  }
+
+  Widget _buildBirthdaysCard(BuildContext context, List<Teacher> teachers) {
+    final todayBirthdays = teachers
+        .where((t) =>
+            t.birthday != null &&
+            t.birthday!.isNotEmpty &&
+            BirthdayUtils.isBirthdayToday(t.birthday))
+        .toList();
+    if (todayBirthdays.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('🎂 ימי הולדת היום – ברכי והתייחסי!'),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'היום יום ההולדת של:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...todayBirthdays.map(
+                  (t) => ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    leading: Icon(
+                      Icons.cake,
+                      color: Colors.pink[300],
+                      size: 24,
+                    ),
+                    title: Text(
+                      t.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'ברכי והתייחסי!',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              TeacherDetailsScreen(teacherId: t.id),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   Widget _buildNeedAttentionCard(

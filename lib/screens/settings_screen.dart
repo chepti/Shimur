@@ -7,6 +7,7 @@ import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'add_teacher_screen.dart';
+import 'birthday_import_screen.dart';
 import 'external_surveys_screen.dart';
 
 // צבעי הדגשה למסך הגדרות
@@ -879,6 +880,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('הוסף מורה חדש/ה'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _AccentRedDark,
+                  side: const BorderSide(color: _AccentRedDark),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const BirthdayImportScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.cake),
+                label: const Text('ייבוא ימי הולדת (טבלה/הדבקה)'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _AccentRedDark,
                   side: const BorderSide(color: _AccentRedDark),

@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../models/manager_settings.dart';
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
 import '../utils/birthday_utils.dart';
@@ -71,9 +70,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // כרטיס הישגים ועידוד (דופמין)
-                  _buildAchievementsCard(context, teachers),
-                  const SizedBox(height: 16),
                   // כרטיסי KPI עליונים
                   _buildKpiRow(teachers, stats),
                   const SizedBox(height: 24),
@@ -236,155 +232,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         fontWeight: FontWeight.bold,
       ),
     );
-  }
-
-  /// כרטיס הישגים ועידוד – דופמין למנהל
-  Widget _buildAchievementsCard(BuildContext context, List<Teacher> teachers) {
-    return FutureBuilder<({int goodWords, int streak, int dailyGoal})>(
-      future: Future.wait([
-        _firestoreService.getTodayGoodWordsCount(),
-        _firestoreService.getReferralStreakDays(),
-        _firestoreService.getManagerSettings(),
-      ]).then((r) {
-        final settings = r[2] as ManagerSettings;
-        return (
-          goodWords: r[0] as int,
-          streak: r[1] as int,
-          dailyGoal: settings.goalsGoodWordsPerDay > 0
-              ? settings.goalsGoodWordsPerDay
-              : 10,
-        );
-      }),
-      builder: (context, snapshot) {
-        final goodWords = snapshot.data?.goodWords ?? 0;
-        final streak = snapshot.data?.streak ?? 0;
-        final dailyGoal = snapshot.data?.dailyGoal ?? 10;
-
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [
-                  const Color(0xFF11a0db).withOpacity(0.08),
-                  const Color(0xFF40AE49).withOpacity(0.06),
-                ],
-              ),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.emoji_events, color: Colors.amber[700], size: 24),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'הישגים ועידוד',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                  )
-                else
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _buildAchievementChip(
-                        icon: goodWords >= dailyGoal ? Icons.check_circle : Icons.favorite,
-                        label: goodWords >= dailyGoal
-                            ? 'הגעת ליעד! $goodWords מילים'
-                            : '$goodWords/$dailyGoal מילים טובות',
-                        color: goodWords >= dailyGoal
-                            ? const Color(0xFF40AE49)
-                            : const Color(0xFF11a0db),
-                      ),
-                      if (streak > 0)
-                        _buildAchievementChip(
-                          icon: Icons.local_fire_department,
-                          label: 'רצף $streak ימים',
-                          color: Colors.orange[700]!,
-                        ),
-                      _buildAchievementChip(
-                        icon: Icons.weekend,
-                        label: 'סיכום שבוע',
-                        color: const Color(0xFF11a0db),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const WeeklySummaryScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAchievementChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    VoidCallback? onTap,
-  }) {
-    final child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: color.withOpacity(0.95),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: child,
-      );
-    }
-    return child;
   }
 
   Widget _buildKpiRow(List<Teacher> teachers, DashboardStats stats) {

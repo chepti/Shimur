@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import '../models/action.dart' as models;
 import '../models/teacher.dart';
 import '../services/firestore_service.dart';
+import '../widgets/celebration_confetti.dart';
 import '../widgets/hebrew_gregorian_date.dart';
 import 'teacher_details_screen.dart';
 
@@ -97,16 +99,55 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
   final Random _random = Random();
   bool _isLoading = true;
   bool _moodSaving = false;
+  late ScrollController _scrollController;
+  late ConfettiController _confettiController;
+  bool _hasShownPerfectConfetti = false;
 
   List<Teacher> get _toClassify =>
       _teachers.where((t) => !_addressedIds.contains(t.id) && !_notAddressedIds.contains(t.id)).toList();
   List<Teacher> get _documentedThisWeek =>
       _teachers.where((t) => _documentedThisWeekIds.contains(t.id)).toList();
 
+  bool get _isPerfectWeek =>
+      _addressedIds.length + _notAddressedIds.length >= _teachers.length &&
+      _teachers.isNotEmpty &&
+      _moodUpdates.isNotEmpty &&
+      _linkedActions.length >= 7;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _scrollController.addListener(_onScroll);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_isPerfectWeek || _hasShownPerfectConfetti) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 80) {
+      _hasShownPerfectConfetti = true;
+      _confettiController.play();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('הסיכום השבועי מושלם! 🎉'),
+            backgroundColor: Color(0xFF40AE49),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _load() async {
@@ -235,119 +276,27 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
                       ],
                     ),
                   )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildPerfectWeekBanner(),
-                          _buildSwipeSection(),
-                          const SizedBox(height: 24),
-                          _buildMoodSection(),
-                          const SizedBox(height: 24),
-                          _buildEngagementSection(),
-                        ],
+                : CelebrationConfetti(
+                    controller: _confettiController,
+                    child: RefreshIndicator(
+                      onRefresh: _load,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildSwipeSection(),
+                            const SizedBox(height: 24),
+                            _buildMoodSection(),
+                            const SizedBox(height: 24),
+                            _buildEngagementSection(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-      ),
-    );
-  }
-
-  /// הישג "שבוע מושלם" – כל הצוות סווג, עדכון סטטוס, 7 היגדים לפעולה
-  Widget _buildPerfectWeekBanner() {
-    final allClassified = _addressedIds.length + _notAddressedIds.length >= _teachers.length && _teachers.isNotEmpty;
-    final hasMoodUpdates = _moodUpdates.isNotEmpty;
-    final insightsToActions = _linkedActions.length >= 7;
-    final isPerfect = allClassified && hasMoodUpdates && insightsToActions;
-
-    if (!isPerfect) {
-      final remaining = <String>[];
-      if (!allClassified) remaining.add('סיווג כל הצוות');
-      if (!hasMoodUpdates) remaining.add('עדכון סטטוס רגשי');
-      if (!insightsToActions) remaining.add('הפיכת 7 היגדים לפעולות (${_linkedActions.length}/7)');
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          color: Colors.amber.withOpacity(0.08),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.emoji_events_outlined, color: Colors.amber[800], size: 22),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'שבוע מושלם',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'עוד ${remaining.length} צעד${remaining.length == 1 ? '' : 'ים'}: ${remaining.join(', ')}',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-              colors: [
-                const Color(0xFF40AE49).withOpacity(0.15),
-                const Color(0xFF11a0db).withOpacity(0.08),
-              ],
-            ),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(Icons.emoji_events, color: Colors.amber[700], size: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '🎉 שבוע מושלם!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2E7D32),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'כל הצוות סווג, סטטוס עודכן ו־7 היגדים הפכו לפעולות. כל הכבוד!',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[800]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -604,98 +553,115 @@ class _WeeklySummaryScreenState extends State<WeeklySummaryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // SingleChildScrollView אופקי מונע overflow (למשל 70px) במסכים צרים
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            reverse: true, // RTL: גלילה מתחילה מהצד הנכון
-            child: Row(
-              textDirection: TextDirection.rtl,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: Text(
-                    teacher.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                    textDirection: TextDirection.rtl,
+          if (isNotUpdated) ...[
+            // שם תמיד בראש – לא מתחרה על רוחב עם הסטטוסים
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                teacher.name,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                textDirection: TextDirection.rtl,
+              ),
+            ),
+            const SizedBox(height: 6),
+            // קרוסלה גוללת – כרטיסי סטטוס לא תופסים יותר מדי רוחב
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                itemCount: _moodLevels.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final e = _moodLevels[i];
+                  return ActionChip(
+                    label: Text(e.label, style: const TextStyle(fontSize: 12)),
+                    backgroundColor: e.color.withOpacity(0.15),
+                    side: BorderSide(color: e.color.withOpacity(0.5)),
+                    onPressed: () => _setMoodStatus(teacher, e.id),
+                  );
+                },
+              ),
+            ),
+          ] else ...[
+            // SingleChildScrollView אופקי – כשסטטוס כבר נבחר
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              reverse: true,
+              child: Row(
+                textDirection: TextDirection.rtl,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      teacher.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      textDirection: TextDirection.rtl,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                if (isNotUpdated) ...[
-                  Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  textDirection: TextDirection.rtl,
-                  children: _moodLevels.map((e) {
-                    return ActionChip(
-                      label: Text(e.label, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: e.color.withOpacity(0.15),
-                      side: BorderSide(color: e.color.withOpacity(0.5)),
-                      onPressed: () => _setMoodStatus(teacher, e.id),
-                    );
-                  }).toList(),
-                ),
-              ] else ...[
-                // רוחב מינימלי + IconButton כדי שבגרסת Web החיצים תמיד יוצגו (ללא overflow/קריסה)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 200),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _moodColor(currentStatus).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _moodColor(currentStatus)),
+                  const SizedBox(width: 8),
+                  // רוחב מינימלי + IconButton כדי שבגרסת Web החיצים תמיד יוצגו (ללא overflow/קריסה)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 200),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _moodColor(currentStatus).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _moodColor(currentStatus)),
+                          ),
+                          child: Text(
+                            displayStatus,
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _moodColor(currentStatus)),
+                          ),
                         ),
-                        child: Text(
-                          displayStatus,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _moodColor(currentStatus)),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          onPressed: () => _setMoodTrend(teacher, 'up'),
+                          icon: Icon(
+                            Icons.keyboard_arrow_up,
+                            size: 32,
+                            color: trend == 'up' ? Colors.green[700] : Colors.grey,
+                          ),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          style: IconButton.styleFrom(
+                            foregroundColor: trend == 'up' ? Colors.green[700] : Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        onPressed: () => _setMoodTrend(teacher, 'up'),
-                        icon: Icon(
-                          Icons.keyboard_arrow_up,
-                          size: 32,
-                          color: trend == 'up' ? Colors.green[700] : Colors.grey,
+                        IconButton(
+                          onPressed: () => _setMoodTrend(teacher, 'down'),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 32,
+                            color: trend == 'down' ? Colors.red[700] : Colors.grey,
+                          ),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          style: IconButton.styleFrom(
+                            foregroundColor: trend == 'down' ? Colors.red[700] : Colors.grey,
+                          ),
                         ),
-                        padding: const EdgeInsets.all(4),
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        style: IconButton.styleFrom(
-                          foregroundColor: trend == 'up' ? Colors.green[700] : Colors.grey,
+                        IconButton(
+                          icon: Icon(Icons.note_add_outlined, size: 22, color: hasNote ? Colors.blue : Colors.grey),
+                          onPressed: () => _showNoteOnlyOverlay(teacher),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => _setMoodTrend(teacher, 'down'),
-                        icon: Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 32,
-                          color: trend == 'down' ? Colors.red[700] : Colors.grey,
-                        ),
-                        padding: const EdgeInsets.all(4),
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        style: IconButton.styleFrom(
-                          foregroundColor: trend == 'down' ? Colors.red[700] : Colors.grey,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.note_add_outlined, size: 22, color: hasNote ? Colors.blue : Colors.grey),
-                        onPressed: () => _showNoteOnlyOverlay(teacher),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
               ],
-            ],
+            ),
           ),
-        ),
+        ],
         ],
       ),
     );

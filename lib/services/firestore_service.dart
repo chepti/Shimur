@@ -424,7 +424,8 @@ class FirestoreService {
     return count;
   }
 
-  /// רצף ימים עם לפחות התייחסות אחת (מילה טובה/דיבור/פגישה) – נספר אחורה מהיום.
+  /// רצף ימי פעילות (ראשון–חמישי) עם לפחות התייחסות אחת – נספר אחורה מהיום.
+  /// שישי ושבת אינם נספרים ברצף.
   Future<int> getReferralStreakDays() async {
     if (_currentUserId == null) return 0;
 
@@ -439,6 +440,13 @@ class FirestoreService {
         .get();
 
     while (true) {
+      // דילוג על שישי (5) ושבת (6) – DateTime.weekday: 1=Mon … 7=Sun
+      final w = checkDate.weekday;
+      if (w == 5 || w == 6) {
+        checkDate = checkDate.subtract(const Duration(days: 1));
+        continue;
+      }
+
       final startIso = checkDate.toIso8601String();
       final endIso = checkDate.add(const Duration(days: 1)).toIso8601String();
       bool hasAction = false;

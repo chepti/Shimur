@@ -1,8 +1,10 @@
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import '../models/teacher.dart';
 import '../models/manager_settings.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/celebration_confetti.dart';
 import '../widgets/teacher_card.dart';
 import '../widgets/hebrew_gregorian_date.dart';
 import 'teacher_details_screen.dart';
@@ -19,13 +21,21 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
   final _firestoreService = FirestoreService();
   ManagerSettings _settings = const ManagerSettings();
   int _goodWordAreaKey = 0;
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _firestoreService.getManagerSettings().then((s) {
       if (mounted) setState(() => _settings = s);
     });
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
   }
 
   @override
@@ -47,7 +57,9 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             ),
           ),
         ),
-        body: StreamBuilder<List<Teacher>>(
+        body: CelebrationConfetti(
+          controller: _confettiController,
+          child: StreamBuilder<List<Teacher>>(
               stream: _firestoreService.getTeachersStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -144,6 +156,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
+                    _buildStreakSection(),
                     const SizedBox(height: 80),
                   ],
                 );
@@ -151,7 +164,37 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             );
               },
             ),
+        ),
       ),
+    );
+  }
+
+  /// תצוגת רצף ימי פעילות (מתחת לרשימת המורים)
+  Widget _buildStreakSection() {
+    return FutureBuilder<int>(
+      future: _firestoreService.getReferralStreakDays(),
+      builder: (context, snapshot) {
+        final streak = snapshot.data ?? 0;
+        if (streak <= 0) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.local_fire_department, color: Colors.orange[700], size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'רצף $streak ימי פעילות',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange[800],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -218,15 +261,11 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required List<Teacher> teachers,
     required int dailyGoal,
   }) {
-    return FutureBuilder<({int goodWords, int streak})>(
+    return FutureBuilder<int>(
       key: ValueKey('goodWordArea_$_goodWordAreaKey'),
-      future: Future.wait([
-        _firestoreService.getTodayGoodWordsCount(),
-        _firestoreService.getReferralStreakDays(),
-      ]).then((r) => (goodWords: r[0], streak: r[1])),
+      future: _firestoreService.getTodayCompletedActionsCount(),
       builder: (context, snapshot) {
-        final goodWords = snapshot.data?.goodWords ?? 0;
-        final streak = snapshot.data?.streak ?? 0;
+        final completedToday = snapshot.data ?? 0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -330,45 +369,21 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            if (streak > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.local_fire_department, color: Colors.orange[700], size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'רצף $streak ימים עם התייחסות',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.orange[800],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      goodWords >= dailyGoal && dailyGoal > 0
-                          ? '🎉 הגעת ליעד!'
-                          : 'התקדמות יומית',
+                    const Text(
+                      'התקדמות יומית',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: goodWords >= dailyGoal && dailyGoal > 0
-                            ? const Color(0xFF40AE49)
-                            : null,
                       ),
                     ),
                     Text(
-                      '$goodWords / $dailyGoal מילים טובות',
+                      '$completedToday / $dailyGoal התייחסויות',
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.grey,
@@ -391,7 +406,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                   )
                 else
                   _buildGoalProgressBar(
-                    goodWords,
+                    completedToday,
                     dailyGoal,
                   ),
               ],
@@ -699,13 +714,15 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
       setState(() => _goodWordAreaKey++);
       final dailyGoal = _settings.goalsGoodWordsPerDay > 0 ? _settings.goalsGoodWordsPerDay : 10;
       if (dailyGoal <= 0) return;
-      final count = await _firestoreService.getTodayGoodWordsCount();
+      final count = await _firestoreService.getTodayCompletedActionsCount();
       if (count >= dailyGoal && mounted) {
+        _confettiController.play();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎉 כל הכבוד! הגעת ליעד היומי של $dailyGoal מילים טובות!'),
+            content: const Text('כל הכבוד! עמדת ביעד היומי 🎉'),
             backgroundColor: const Color(0xFF40AE49),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
           ),
         );
       }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../models/teacher.dart';
 import '../services/firestore_service.dart';
 import '../utils/birthday_utils.dart';
 
@@ -96,12 +97,23 @@ class _BirthdayImportScreenState extends State<BirthdayImportScreen> {
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
 
-      final parts = trimmed.split(RegExp(r'[\t,;]+'));
-      if (parts.length < 2) continue;
+      String? name;
+      String? dateStr;
 
-      final name = parts[0].trim();
-      final dateStr = parts[1].trim();
-      if (name.isEmpty || dateStr.isEmpty) continue;
+      final commaParts = trimmed.split(RegExp(r'[\t,;]+'));
+      if (commaParts.length >= 2) {
+        name = commaParts[0].trim();
+        dateStr = commaParts.sublist(1).join(' ').trim();
+      } else {
+        final dateAtEnd = RegExp(r'^(.+)\s+(\d+[./]\d+([./]\d+)?|\d+\s*-\s*\d+)\s*$');
+        final m = dateAtEnd.firstMatch(trimmed);
+        if (m != null) {
+          name = m.group(1)!.trim();
+          dateStr = m.group(2)!.replaceAll(' ', '');
+        }
+      }
+
+      if (name == null || dateStr == null || name.isEmpty || dateStr.isEmpty) continue;
 
       final birthday = _parseDateString(dateStr);
       if (birthday != null) {
@@ -155,28 +167,109 @@ class _BirthdayImportScreenState extends State<BirthdayImportScreen> {
     return null;
   }
 
+  List<Teacher> _findMatchingTeachers(
+    List<Teacher> teachers,
+    String inputName,
+  ) {
+    final inputNorm = _normalizeName(inputName);
+    final exact = teachers.where((t) =>
+        _normalizeName(t.name) == inputNorm).toList();
+    if (exact.isNotEmpty) return exact;
+
+    final inputWords = inputNorm.split(RegExp(r'\s+')).where((w) => w.length > 1).toSet();
+    return teachers.where((t) {
+      final teacherWords = _normalizeName(t.name).split(RegExp(r'\s+')).where((w) => w.length > 1).toSet();
+      final common = inputWords.intersection(teacherWords).length;
+      return common >= inputWords.length || common >= teacherWords.length;
+    }).toList();
+  }
+
+  String _normalizeName(String s) =>
+      s.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
   Future<void> _applyBirthdays(List<({String name, String birthday})> rows) async {
     final teachers = await _firestoreService.getTeachersStream().first;
     int updated = 0;
     int notFound = 0;
+    final List<String> ambiguous = [];
 
     for (final row in rows) {
-      final match = teachers.where((t) =>
-          t.name.trim().toLowerCase() == row.name.trim().toLowerCase()).toList();
-      if (match.isEmpty) {
+      final candidates = _findMatchingTeachers(teachers, row.name);
+
+      if (candidates.isEmpty) {
         notFound++;
+        ambiguous.add('${row.name} – לא נמצא מורה תואם');
         continue;
       }
-      for (final t in match) {
-        await _firestoreService.updateTeacher(t.copyWith(birthday: row.birthday));
+
+      if (candidates.length == 1) {
+        await _firestoreService.updateTeacher(
+            candidates.single.copyWith(birthday: row.birthday));
         updated++;
+        continue;
+      }
+
+      final exact = candidates.where((t) =>
+          _normalizeName(t.name) == _normalizeName(row.name)).toList();
+      if (exact.isNotEmpty) {
+        for (final t in exact) {
+          await _firestoreService.updateTeacher(t.copyWith(birthday: row.birthday));
+          updated++;
+        }
+        continue;
+      }
+
+      if (!mounted) return;
+      final chosen = await showDialog<Teacher>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('התאמת מורה'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'לא נמצאה התאמה מדויקת ל"${row.name}". האם התכוונת לאחד מהמורים הבאים?',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                ...candidates.map((t) => ListTile(
+                  dense: true,
+                  title: Text(t.name),
+                  onTap: () => Navigator.pop(ctx, t),
+                )),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('דלג'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (chosen != null) {
+        await _firestoreService.updateTeacher(
+            chosen.copyWith(birthday: row.birthday));
+        updated++;
+      } else {
+        notFound++;
+        ambiguous.add('${row.name} – דולג');
       }
     }
 
     if (mounted) {
       setState(() {
         _isLoading = false;
-        _resultMessage = 'עודכנו $updated מורים. לא נמצאו: $notFound.';
+        final msg = StringBuffer('עודכנו $updated מורים. לא נמצאו: $notFound.');
+        if (ambiguous.isNotEmpty) {
+          msg.write('\n\n');
+          msg.write(ambiguous.join('\n'));
+        }
+        _resultMessage = msg.toString();
       });
     }
   }
@@ -202,7 +295,7 @@ class _BirthdayImportScreenState extends State<BirthdayImportScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'פורמט: שם,תאריך (מופרד בפסיק או טאב). תאריך לועזי: 15.3 או 15.03. תאריך עברי: ט"ו בניסן או 15-7.',
+                'פורמט: שם תאריך או שם,תאריך (פסיק, טאב או רווח). תאריך לועזי: 9.3 או 15.03. תאריך עברי: ט"ו בניסן או 15-7.',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 16),

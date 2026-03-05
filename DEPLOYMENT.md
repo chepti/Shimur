@@ -2,6 +2,8 @@
 
 ---
 
+t:\CURSOR2\Shimur\deploy_web.ps1
+
 ## 🌐 פריסה בלי Flutter מקומי (מחשב בלי Flutter / Android Studio)
 
 **כן, אפשר.** אם את במחשב שאין בו Flutter או Android Studio, אפשר לעדכן את https://shimur.web.app/ כך:

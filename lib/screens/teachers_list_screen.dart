@@ -57,9 +57,10 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             ),
           ),
         ),
-        body: CelebrationConfetti(
-          controller: _confettiController,
-          child: StreamBuilder<List<Teacher>>(
+        body: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            StreamBuilder<List<Teacher>>(
               stream: _firestoreService.getTeachersStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -164,6 +165,18 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             );
               },
             ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: CelebrationConfetti(
+                  controller: _confettiController,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -278,6 +291,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                 sheetTitle: 'למי התייחסתי?',
                 sheetSubtitle:
                     'בחר מורה אחד או כמה, והמערכת תשמור עבורך התייחסות קטנה.',
+                currentCount: completedToday,
               ),
               child: Container(
                 width: 220,
@@ -338,6 +352,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'למי אמרתי מילה טובה?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור מילה טובה קטנה.',
+                    currentCount: completedToday,
                   ),
                 ),
                 _buildMiniInteractionCircle(
@@ -351,6 +366,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'עם מי היה לי דיבור קצר?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור דיבור קצר.',
+                    currentCount: completedToday,
                   ),
                 ),
                 _buildMiniInteractionCircle(
@@ -364,6 +380,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     sheetTitle: 'עם מי נפגשתי?',
                     sheetSubtitle:
                         'בחר מורה אחד או כמה, והמערכת תשמור פגישה שהתקיימה.',
+                    currentCount: completedToday,
                   ),
                 ),
               ],
@@ -477,9 +494,11 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     required String interactionType,
     required String sheetTitle,
     required String sheetSubtitle,
+    required int currentCount,
   }) {
     final firestoreService = _firestoreService;
     final nowForSort = DateTime.now();
+    int actionsAddedInSession = 0;
 
     final sortedTeachers = List<Teacher>.from(teachers);
     sortedTeachers.sort((a, b) {
@@ -685,6 +704,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                                           teacher.id,
                                           action,
                                         );
+                                        actionsAddedInSession++;
                                       } catch (e) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -709,22 +729,27 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
           ),
         );
       },
-    ).then((_) async {
+    ).then((_) {
       if (!mounted) return;
       setState(() => _goodWordAreaKey++);
       final dailyGoal = _settings.goalsGoodWordsPerDay > 0 ? _settings.goalsGoodWordsPerDay : 10;
       if (dailyGoal <= 0) return;
-      final count = await _firestoreService.getTodayCompletedActionsCount();
-      if (count >= dailyGoal && mounted) {
+      final newCount = currentCount + actionsAddedInSession;
+      final crossedThreshold = currentCount < dailyGoal && newCount >= dailyGoal;
+      if (crossedThreshold && mounted) {
         _confettiController.play();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('כל הכבוד! עמדת ביעד היומי 🎉'),
-            backgroundColor: const Color(0xFF40AE49),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('כל הכבוד! עמדת ביעד היומי 🎉'),
+                backgroundColor: Color(0xFF40AE49),
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        });
       }
     });
   }

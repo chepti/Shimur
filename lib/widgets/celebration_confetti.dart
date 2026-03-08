@@ -24,10 +24,15 @@ class CelebrationConfetti extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final stripWidth = 80.0;
+    final stripWidth = 100.0;
     final canvasSize = Size(stripWidth, size.height);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    // ב-RTL: שמאל וימין מתהפכים – מתאימים את כיוון הפיצוץ
+    final leftDir = isRtl ? math.pi : 0.0;
+    final rightDir = isRtl ? 0.0 : math.pi;
 
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         if (child != null) child!,
         IgnorePointer(
@@ -38,7 +43,7 @@ class CelebrationConfetti extends StatelessWidget {
               height: size.height,
               child: ConfettiWidget(
                 confettiController: controller,
-                blastDirection: 0,
+                blastDirection: leftDir,
                 blastDirectionality: BlastDirectionality.directional,
                 emissionFrequency: 0.05,
                 numberOfParticles: 12,
@@ -57,7 +62,7 @@ class CelebrationConfetti extends StatelessWidget {
               height: size.height,
               child: ConfettiWidget(
                 confettiController: controller,
-                blastDirection: math.pi,
+                blastDirection: rightDir,
                 blastDirectionality: BlastDirectionality.directional,
                 emissionFrequency: 0.05,
                 numberOfParticles: 12,

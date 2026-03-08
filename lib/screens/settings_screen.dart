@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/manager_settings.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import 'add_teacher_screen.dart';
 import 'birthday_import_screen.dart';
 import 'external_surveys_screen.dart';
@@ -33,6 +34,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ManagerSettings _settings = const ManagerSettings();
   bool _isLoading = true;
   bool _isSaving = false;
+  NotificationStatus? _notificationStatus;
+  bool _notificationEnabling = false;
+  bool _notificationTesting = false;
   String? _schoolLogoUrl;
   String? _managerName;
   bool _logoUploading = false;
@@ -72,12 +76,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = true);
     final s = await _firestoreService.getManagerSettings();
     final school = await _firestoreService.getSchool();
+    final notifStatus = await NotificationService().getStatus();
     if (mounted) {
       _managerName = school?['managerName'] as String?;
       _managerNameController.text = _managerName ?? '';
       setState(() {
         _settings = s;
         _schoolLogoUrl = school?['logoUrl'] as String?;
+        _notificationStatus = notifStatus;
         _isLoading = false;
       });
     }
@@ -667,6 +673,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildNotificationsCard() {
+    final enabled = _notificationStatus?.authorized == true && _notificationStatus?.hasToken == true;
     return Card(
       clipBehavior: Clip.none,
       elevation: 2,
@@ -681,8 +688,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.notifications_active, color: _AccentLime, size: 22),
                 SizedBox(width: 8),
                 Text(
-                  'מתי לקבל התראות',
+                  'התראות Push',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  enabled ? Icons.check_circle : Icons.notifications_off,
+                  color: enabled ? _AccentGreen : Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  enabled ? 'התראות מופעלות' : 'התראות כבויות',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: enabled ? _AccentGreen : Colors.grey[700],
+                  ),
+                ),
+                const Spacer(),
+                if (!enabled)
+                  ElevatedButton.icon(
+                    onPressed: _notificationEnabling
+                        ? null
+                        : () async {
+                            setState(() => _notificationEnabling = true);
+                            final ok = await NotificationService().enable();
+                            if (mounted) {
+                              setState(() {
+                                _notificationEnabling = false;
+                                _notificationStatus = ok
+                                    ? const NotificationStatus(authorized: true, hasToken: true)
+                                    : _notificationStatus;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(ok ? 'התראות הופעלו' : 'לא ניתן להפעיל – נסי שוב או בדקי הרשאות'),
+                                ),
+                              );
+                            }
+                          },
+                    icon: _notificationEnabling
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.notifications_active, size: 18),
+                    label: Text(_notificationEnabling ? 'מפעיל...' : 'הפעל התראות'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _AccentLime,
+                      foregroundColor: Colors.white,
+                    ),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: _notificationTesting
+                        ? null
+                        : () async {
+                            setState(() => _notificationTesting = true);
+                            final err = await NotificationService().sendTestNotification();
+                            if (mounted) {
+                              setState(() => _notificationTesting = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(err ?? 'התראת בדיקה נשלחה'),
+                                  backgroundColor: err != null ? _AccentRed : null,
+                                ),
+                              );
+                            }
+                          },
+                    icon: _notificationTesting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send, size: 18),
+                    label: Text(_notificationTesting ? 'שולח...' : 'בדוק התראה'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Row(
+              children: [
+                Icon(Icons.schedule, color: _AccentLime, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'מתי לקבל התראות',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ],
             ),

@@ -150,6 +150,59 @@ exports.getCustomTokenForUid = onCall(async (request) => {
   return { token };
 });
 
+/**
+ * Callable – שולח התראת בדיקה למשתמש המחובר.
+ */
+exports.sendTestNotification = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'יש להתחבר');
+  }
+  const uid = request.auth.uid;
+  const db = admin.firestore();
+  const settingsSnap = await db
+    .collection('schools')
+    .doc(uid)
+    .collection('settings')
+    .doc('manager')
+    .get();
+  if (!settingsSnap.exists) {
+    throw new HttpsError('failed-precondition', 'אין טוקנים – הפעילי קודם התראות בהגדרות');
+  }
+  const data = settingsSnap.data();
+  const fcmTokens = data?.fcmTokens;
+  if (!Array.isArray(fcmTokens) || fcmTokens.length === 0) {
+    throw new HttpsError('failed-precondition', 'אין טוקנים – הפעילי קודם התראות בהגדרות');
+  }
+  const tokens = fcmTokens.map((t) => (t && typeof t.token === 'string' ? t.token : null)).filter(Boolean);
+  if (tokens.length === 0) {
+    throw new HttpsError('failed-precondition', 'אין טוקנים – הפעילי קודם התראות בהגדרות');
+  }
+
+  const message = {
+    notification: {
+      title: 'בדיקה – שימור המורים',
+      body: 'ההתראה עובדת! תוכלי לקבל התראות בתחילת וסוף השבוע.',
+      imageUrl: 'https://shimur.web.app/icons/Icon-192.png',
+    },
+    data: { type: 'test' },
+    android: {
+      priority: 'high',
+      notification: { channelId: 'shimur_weekly', color: '#0175C2' },
+    },
+    webpush: { fcmOptions: { link: 'https://shimur.web.app' } },
+  };
+
+  const messaging = admin.messaging();
+  let sent = 0;
+  for (const token of tokens) {
+    try {
+      await messaging.send({ ...message, token });
+      sent++;
+    } catch (_) {}
+  }
+  return { sent };
+});
+
 exports.submitEngagementForm = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== 'POST') {

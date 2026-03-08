@@ -12,7 +12,7 @@ String _platformName() {
 /// תומך ב־Web (PWA) וב־Android.
 class NotificationService {
   static const String _vapidKeyWeb =
-      'REPLACE_WITH_YOUR_VAPID_KEY'; // לייצר ב־Firebase Console → Cloud Messaging → Web Push certificates
+      'BLYWxjoh8A_Au4cyDxFUDY5Eq4c_oaoVnn2qOjBtcH6zm5mailYzWeA3ozyG-IdaydlW7bQFxbC2dj4VHqifFdQ'; // לייצר ב־Firebase Console → Cloud Messaging → Web Push certificates
 
   final FirestoreService _firestore = FirestoreService();
 

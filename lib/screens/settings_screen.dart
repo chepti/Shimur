@@ -716,17 +716,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ? null
                         : () async {
                             setState(() => _notificationEnabling = true);
-                            final ok = await NotificationService().enable();
+                            final err = await NotificationService().enable();
                             if (mounted) {
                               setState(() {
                                 _notificationEnabling = false;
-                                _notificationStatus = ok
-                                    ? const NotificationStatus(authorized: true, hasToken: true)
-                                    : _notificationStatus;
+                                if (err == null) {
+                                  _notificationStatus = const NotificationStatus(authorized: true, hasToken: true);
+                                }
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(ok ? 'התראות הופעלו' : 'לא ניתן להפעיל – נסי שוב או בדקי הרשאות'),
+                                  content: Text(err ?? 'התראות הופעלו'),
+                                  backgroundColor: err != null ? _AccentRed : null,
                                 ),
                               );
                             }

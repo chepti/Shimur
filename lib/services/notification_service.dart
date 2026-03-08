@@ -51,7 +51,8 @@ class NotificationService {
   }
 
   /// מבקש הרשאה ושומר טוקן – לשימוש מכפתור "הפעל התראות".
-  Future<bool> enable() async {
+  /// מחזיר null בהצלחה, או הודעת שגיאה.
+  Future<String?> enable() async {
     try {
       final messaging = FirebaseMessaging.instance;
       final settings = await messaging.requestPermission(
@@ -59,23 +60,49 @@ class NotificationService {
         badge: true,
         sound: true,
       );
-      if (settings.authorizationStatus == AuthorizationStatus.denied) return false;
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        return 'ההרשאה נדחתה – בדקי בהגדרות הדפדפן שהאתר מורשה להתראות';
+      }
+      if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+        return 'לא התקבלה תשובה – נסי שוב';
+      }
 
       String? token;
       if (kIsWeb) {
-        if (_vapidKeyWeb.startsWith('REPLACE_')) return false;
-        token = await messaging.getToken(vapidKey: _vapidKeyWeb);
+        if (_vapidKeyWeb.startsWith('REPLACE_')) {
+          return 'מפתח VAPID חסר – ראי NOTIFICATIONS_SETUP.md';
+        }
+        try {
+          token = await messaging.getToken(vapidKey: _vapidKeyWeb);
+        } catch (e) {
+          final msg = e.toString();
+          if (msg.contains('messaging/permission-blocked') ||
+              msg.contains('permission-blocked')) {
+            return 'הדפדפן חוסם התראות – בדקי בהגדרות הדפדפן';
+          }
+          if (msg.contains('messaging/failed-service-worker') ||
+              msg.contains('service-worker')) {
+            return 'שגיאה ב־Service Worker – רענני את הדף (Ctrl+F5) ונסי שוב';
+          }
+          return 'שגיאה: $msg';
+        }
       } else {
         token = await messaging.getToken();
       }
 
-      if (token != null && token.isNotEmpty) {
-        await _firestore.saveFcmToken(token, _platformName());
-        return true;
+      if (token == null || token.isEmpty) {
+        return 'לא התקבל טוקן – ודאי שההרשאה אושרה';
       }
-      return false;
-    } catch (_) {
-      return false;
+
+      await _firestore.saveFcmToken(token, _platformName());
+      return null;
+    } catch (e) {
+      // debugPrint('NotificationService.enable: $e');
+      final msg = e.toString();
+      if (msg.contains('messaging/permission-blocked')) {
+        return 'הדפדפן חוסם התראות – בדקי בהגדרות';
+      }
+      return 'שגיאה: ${msg.length > 80 ? msg.substring(0, 80) : msg}';
     }
   }
 

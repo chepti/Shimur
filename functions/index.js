@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const { onRequest, onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineString } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
@@ -258,3 +259,105 @@ exports.submitEngagementForm = functions.https.onRequest((req, res) => {
     }
   });
 });
+
+/**
+ * התראות Push מתוזמנות – תחילת שבוע וסוף שבוע.
+ * רץ כל 15 דקות, בודק אם השעה והיום תואמים להגדרות המנהל.
+ * Manager: 1=שני … 7=ראשון. JS: 0=ראשון, 1=שני … 6=שבת.
+ */
+exports.sendScheduledNotifications = onSchedule(
+  { schedule: 'every 15 minutes', timeZone: 'Asia/Jerusalem' },
+  async () => {
+    const db = admin.firestore();
+    const now = new Date();
+    const jsDay = now.getDay(); // 0=Sun, 1=Mon, ...
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    // חלון של 15 דקות – אם השעה הנוכחית בתוך הטווח
+    const minuteSlot = Math.floor(minute / 15) * 15;
+
+    const schoolsSnap = await db.collection('schools').get();
+    const messaging = admin.messaging();
+
+    for (const schoolDoc of schoolsSnap.docs) {
+      const schoolId = schoolDoc.id;
+      const settingsSnap = await db
+        .collection('schools')
+        .doc(schoolId)
+        .collection('settings')
+        .doc('manager')
+        .get();
+      if (!settingsSnap.exists) continue;
+
+      const data = settingsSnap.data();
+      const fcmTokens = data?.fcmTokens;
+      if (!Array.isArray(fcmTokens) || fcmTokens.length === 0) continue;
+
+      const tokens = fcmTokens.map((t) => (t && typeof t.token === 'string' ? t.token : null)).filter(Boolean);
+      if (tokens.length === 0) continue;
+
+      // Manager: 7=ראשון(0), 1=שני(1), ... 6=שבת(6)
+      const managerDay = (d) => (d === 0 ? 7 : d);
+      const targetDay = managerDay(jsDay);
+
+      const nStart = {
+        w: data.notificationStartWeekWeekday ?? 7,
+        h: data.notificationStartWeekHour ?? 7,
+        m: data.notificationStartWeekMinute ?? 40,
+      };
+      const nEnd = {
+        w: data.notificationEndWeekWeekday ?? 4,
+        h: data.notificationEndWeekHour ?? 16,
+        m: data.notificationEndWeekMinute ?? 0,
+      };
+
+      let title = '';
+      let body = '';
+
+      if (targetDay === nStart.w && hour === nStart.h && minuteSlot === Math.floor(nStart.m / 15) * 15) {
+        title = 'התחלת שבוע – שימור המורים';
+        body = 'פגישות מומלצות, מילים טובות וימי הולדת – פתח את האפליקציה לעדכון';
+      } else if (targetDay === nEnd.w && hour === nEnd.h && minuteSlot === Math.floor(nEnd.m / 15) * 15) {
+        title = 'סוף שבוע – שימור המורים';
+        body = 'סיכום השבוע והכנה לשבוע הבא – פתח את האפליקציה';
+      }
+
+      if (!title) continue;
+
+      const message = {
+        notification: {
+          title,
+          body,
+          imageUrl: 'https://shimur.web.app/icons/Icon-192.png',
+        },
+        data: {
+          type: targetDay === nStart.w ? 'weekly_start' : 'weekly_end',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'shimur_weekly',
+            color: '#0175C2',
+          },
+        },
+        webpush: {
+          fcmOptions: {
+            link: 'https://shimur.web.app',
+          },
+        },
+      };
+
+      for (const token of tokens) {
+        try {
+          await messaging.send({ ...message, token });
+        } catch (err) {
+          if (err.code === 'messaging/invalid-registration-token' ||
+              err.code === 'messaging/registration-token-not-registered') {
+            // טוקן לא תקף – אפשר להסיר מ־Firestore (לא מטפלים כאן)
+          }
+        }
+      }
+    }
+  }
+);

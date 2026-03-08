@@ -256,6 +256,12 @@ firebase deploy --only firestore:indexes
 
 **טיפ:** אפשר להוסיף את האפליקציה למסך הבית (Add to Home Screen) כדי שתראה כמו אפליקציה רגילה.
 
+## 🔔 התראות Push
+
+להפעלת התראות אמיתיות במכשיר – ראי `NOTIFICATIONS_SETUP.md`. נדרש:
+- **Web**: יצירת מפתח VAPID ב־Firebase Console והדבקה ב־`notification_service.dart`
+- **פרסום Functions**: `firebase deploy --only functions`
+
 ---
 
 ## 🎯 סיכום - צעדים מהירים

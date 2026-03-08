@@ -704,6 +704,33 @@ class FirestoreService {
         .set(settings.toMap());
   }
 
+  /// שומר טוקן FCM להתראות Push – נשמר ב־settings/manager.
+  /// תומך במספר מכשירים (עד 5 טוקנים).
+  Future<void> saveFcmToken(String token, String platform) async {
+    final uid = await _requireUserId();
+    final ref = _firestore
+        .collection('schools')
+        .doc(uid)
+        .collection('settings')
+        .doc(_managerSettingsDocId);
+    final now = DateTime.now().toIso8601String();
+    final doc = await ref.get();
+    List<Map<String, dynamic>> tokens = [];
+    if (doc.exists && doc.data() != null) {
+      final list = doc.data()!['fcmTokens'];
+      if (list is List) {
+        for (final e in list) {
+          if (e is Map<String, dynamic> && e['token'] != token) {
+            tokens.add(e);
+          }
+        }
+      }
+    }
+    tokens.add({'token': token, 'platform': platform, 'updatedAt': now});
+    if (tokens.length > 5) tokens = tokens.sublist(tokens.length - 5);
+    await ref.set({'fcmTokens': tokens}, SetOptions(merge: true));
+  }
+
   /// מוודא שקיים schoolFormToken – נדרש כדי שטופס השאלון החיצוני יעבוד.
   /// קוראים פעם אחת בטעינת האפליקציה.
   Future<void> ensureManagerSettingsWithFormToken() async {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:file_picker/_internal/file_picker_web.dart';
 import 'config/allowed_users.dart';
 import 'config/auth_state.dart';
@@ -12,13 +13,20 @@ import 'screens/tasks_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 import 'firebase_options.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   if (kIsWeb) {
     FilePickerWeb.registerWith(webPluginRegistrar);
   }
-  WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -118,6 +126,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     super.initState();
     // אתחול schoolFormToken – נדרש כדי שטופס השאלון החיצוני יעבוד
     FirestoreService().ensureManagerSettingsWithFormToken();
+    // אתחול התראות Push – מבקש הרשאה ושומר טוקן
+    NotificationService().initialize();
   }
 
   final List<Widget> _screens = [

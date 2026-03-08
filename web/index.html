@@ -34,7 +34,7 @@
 </head>
 <body>
   <script>
-    // רישום Service Worker להתראות Push (Web)
+    // רישום Service Worker להתראות Push – לפני טעינת Flutter
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
         navigator.serviceWorker.register("/firebase-messaging-sw.js");

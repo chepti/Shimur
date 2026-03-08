@@ -70,7 +70,7 @@ firebase deploy --only functions
 
 1. **ההרשאה נדחתה** – לחצי על אייקון המנעול/מידע בשורת הכתובת → **התראות** → **אפשר**
 2. **הדפדפן חוסם** – Chrome: Settings → Privacy → Site settings → Notifications → הוסיפי את shimur.web.app ל"Allowed"
-3. **רענני את הדף** – Ctrl+F5 (ריענון מלא) ונסי שוב
+3. **שגיאת getToken / MissingPluginException** – רענני את הדף (Ctrl+F5), חכי 5 שניות, ונסי שוב. ה־Service Worker צריך זמן להפעלה.
 4. **מצב פרטי/אינקוגניטו** – חלק מהדפדפנים מגבילים התראות; נסי בחלון רגיל
 5. **ודאי HTTPS** – התראות עובדות רק ב־HTTPS (shimur.web.app תקין)
 

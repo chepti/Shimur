@@ -203,6 +203,88 @@ exports.sendTestNotification = onCall(async (request) => {
   return { sent };
 });
 
+/**
+ * HTTP – שולח התראת בדיקה. לשימוש מ-Flutter Web (נמנע מ-Int64 ב-dart2js).
+ * Authorization: Bearer <idToken>
+ */
+exports.sendTestNotificationHttp = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== 'POST' && req.method !== 'OPTIONS') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ error: 'יש להתחבר' });
+        return;
+      }
+      const idToken = authHeader.substring(7);
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      const uid = decoded.uid;
+
+      const db = admin.firestore();
+      const settingsSnap = await db
+        .collection('schools')
+        .doc(uid)
+        .collection('settings')
+        .doc('manager')
+        .get();
+      if (!settingsSnap.exists) {
+        res.status(400).json({ error: 'אין טוקנים – הפעילי קודם התראות בהגדרות' });
+        return;
+      }
+      const data = settingsSnap.data();
+      const fcmTokens = data?.fcmTokens;
+      if (!Array.isArray(fcmTokens) || fcmTokens.length === 0) {
+        res.status(400).json({ error: 'אין טוקנים – הפעילי קודם התראות בהגדרות' });
+        return;
+      }
+      const tokens = fcmTokens.map((t) => (t && typeof t.token === 'string' ? t.token : null)).filter(Boolean);
+      if (tokens.length === 0) {
+        res.status(400).json({ error: 'אין טוקנים – הפעילי קודם התראות בהגדרות' });
+        return;
+      }
+
+      const message = {
+        notification: {
+          title: 'בדיקה – שימור המורים',
+          body: 'ההתראה עובדת! תוכלי לקבל התראות בתחילת וסוף השבוע.',
+          imageUrl: 'https://shimur.web.app/icons/Icon-192.png',
+        },
+        data: { type: 'test' },
+        android: {
+          priority: 'high',
+          notification: { channelId: 'shimur_weekly', color: '#0175C2' },
+        },
+        webpush: { fcmOptions: { link: 'https://shimur.web.app' } },
+      };
+
+      const messaging = admin.messaging();
+      let sent = 0;
+      for (const token of tokens) {
+        try {
+          await messaging.send({ ...message, token });
+          sent++;
+        } catch (_) {}
+      }
+      res.status(200).json({ sent });
+    } catch (err) {
+      const code = err && (err.code || err.errorInfo?.code);
+      if (code === 'auth/id-token-expired' || code === 'auth/argument-error') {
+        res.status(401).json({ error: 'יש להתחבר מחדש' });
+        return;
+      }
+      console.error('sendTestNotificationHttp error:', err);
+      res.status(500).json({ error: 'שגיאה בשליחת בדיקה' });
+    }
+  });
+});
+
 exports.submitEngagementForm = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     if (req.method !== 'POST') {

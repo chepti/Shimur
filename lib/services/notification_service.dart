@@ -1,6 +1,12 @@
+import 'dart:convert';
+
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:http/http.dart' as http;
+
+import '../firebase_options.dart';
 import 'firestore_service.dart';
 
 import 'notification_permission_stub.dart'
@@ -130,9 +136,12 @@ class NotificationService {
   }
 
   /// שולח התראת בדיקה – קורא ל־Cloud Function.
-  /// מחזיר הודעת שגיאה או null בהצלחה.
+  /// ב־Web משתמש ב־HTTP (נמנע מ־Int64 ב־dart2js), ב־Android/iOS ב־Callable.
   Future<String?> sendTestNotification() async {
     try {
+      if (kIsWeb) {
+        return await _sendTestNotificationHttp();
+      }
       final result = await FirebaseFunctions.instance
           .httpsCallable('sendTestNotification')
           .call<Map<String, dynamic>>();
@@ -143,6 +152,42 @@ class NotificationService {
       return e.message ?? 'שגיאה בשליחת בדיקה';
     } catch (e) {
       return e.toString();
+    }
+  }
+
+  /// HTTP – נמנע מ־Int64 ב־dart2js (Callable מחזיר metadata עם Int64).
+  Future<String?> _sendTestNotificationHttp() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'יש להתחבר';
+    final idToken = await user.getIdToken();
+    if (idToken == null || idToken.isEmpty) return 'יש להתחבר מחדש';
+
+    final projectId = DefaultFirebaseOptions.currentPlatform.projectId;
+    final url = Uri.parse(
+      'https://us-central1-$projectId.cloudfunctions.net/sendTestNotificationHttp',
+    );
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final sent = data['sent'] as int? ?? 0;
+      if (sent > 0) return null;
+      return 'לא נשלחה התראה – ודאי שההתראות מופעלות';
+    }
+
+    try {
+      final err = jsonDecode(response.body) as Map<String, dynamic>;
+      return err['error'] as String? ?? 'שגיאה בשליחת בדיקה';
+    } catch (_) {
+      return response.statusCode == 401
+          ? 'יש להתחבר מחדש'
+          : 'שגיאה בשליחת בדיקה';
     }
   }
 

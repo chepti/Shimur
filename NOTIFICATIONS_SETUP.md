@@ -80,3 +80,16 @@ firebase deploy --only functions
 ### Android
 
 - ודאי שההתראות לא חסומות בהגדרות האפליקציה: Settings → Apps → shimur → Notifications
+
+## בעיות ידועות (Web)
+
+### Intl.v8BreakIterator הוצא משימוש
+
+- **תיאור**: Chrome מציג אזהרה "Intl.v8BreakIterator הוצא משימוש, יש להשתמש ב־Intl.Segmenter"
+- **מקור**: מנוע Flutter (CanvasKit) – לא מהקוד שלנו
+- **פעולה**: האזהרה לא משפיעה על פעולת האפליקציה. Flutter יעדכן את המנוע בגרסאות עתידיות. עדכון Flutter (`flutter upgrade`) עשוי לפתור כשהתיקון ייכלל.
+
+### Int64 accessor not supported by dart2js
+
+- **תיאור**: שגיאה "Unsupported operation: Int64 accessor not supported by dart2js" בלחיצה על "בדוק התראה"
+- **פתרון**: האפליקציה משתמשת כעת ב־HTTP במקום Callable ב־Web, כדי להימנע מ־Int64. ודאי שפרסתם את `sendTestNotificationHttp` (`firebase deploy --only functions`).

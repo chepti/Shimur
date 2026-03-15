@@ -31,13 +31,61 @@
 
   <title>טיפוח ההון האנושי</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Firebase JS – ל־getToken ב־Web (עוקף Flutter plugin שזורק MissingPluginException) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyD8Ts4gXr_KJ7cJnZ54mVb3HWsixeyhaIA",
+      appId: "1:473831757405:web:996242dfb7903db7e29fb4",
+      messagingSenderId: "473831757405",
+      projectId: "shimur",
+      authDomain: "shimur.firebaseapp.com",
+      storageBucket: "shimur.firebasestorage.app",
+      measurementId: "G-KGC9NVP62N"
+    };
+    if (typeof firebase !== 'undefined') {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      window._fcmSwRegistration = null;
+      window.getFcmTokenJs = function(vapidKey) {
+        return new Promise(function(resolve, reject) {
+          function doGetToken(reg) {
+            firebase.messaging().getToken({
+              vapidKey: vapidKey,
+              serviceWorkerRegistration: reg || window._fcmSwRegistration
+            }).then(resolve).catch(reject);
+          }
+          if (window._fcmSwRegistration && window._fcmSwRegistration.active) {
+            doGetToken(window._fcmSwRegistration);
+          } else if (window._fcmSwRegistration) {
+            window._fcmSwRegistration.ready.then(function(reg) {
+              doGetToken(reg);
+            }).catch(reject);
+          } else {
+            navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+              scope: "/firebase-cloud-messaging-push-scope"
+            }).then(function(reg) {
+              window._fcmSwRegistration = reg;
+              return reg.ready;
+            }).then(function(reg) {
+              doGetToken(reg);
+            }).catch(reject);
+          }
+        });
+      };
+    }
+  </script>
 </head>
 <body>
   <script>
-    // רישום Service Worker להתראות Push – לפני טעינת Flutter
+    // רישום מוקדם של Service Worker – Firebase דורש scope ספציפי
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+          scope: "/firebase-cloud-messaging-push-scope"
+        }).then(function(reg) {
+          window._fcmSwRegistration = reg;
+        }).catch(function(e) { console.warn("FCM SW:", e); });
       });
     }
   </script>

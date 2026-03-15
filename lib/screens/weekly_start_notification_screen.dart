@@ -128,8 +128,9 @@ class _WeeklyStartNotificationScreenState
         final q4 = t.engagementItemScores['q4'];
         if (q4 != null && q4 <= 3) s += 50;
         if (t.moodTrend == 'down') s += 30;
-        if (t.lastInteractionDate == null) s += 20;
-        else {
+        if (t.lastInteractionDate == null) {
+          s += 20;
+        } else {
           final days = DateTime.now().difference(t.lastInteractionDate!).inDays;
           if (days > 14) s += 25;
         }

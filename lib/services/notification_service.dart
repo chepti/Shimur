@@ -5,6 +5,8 @@ import 'firestore_service.dart';
 
 import 'notification_permission_stub.dart'
   if (dart.library.html) 'notification_permission_web.dart' as web_perm;
+import 'fcm_token_stub.dart'
+  if (dart.library.html) 'fcm_token_web.dart' as fcm_token;
 
 String _platformName() {
   if (kIsWeb) return 'web';
@@ -41,8 +43,7 @@ class NotificationService {
         if (!web_perm.getWebNotificationPermissionGranted()) {
           return const NotificationStatus(authorized: false, hasToken: false);
         }
-        final messaging = FirebaseMessaging.instance;
-        final token = await messaging.getToken(vapidKey: _vapidKeyWeb);
+        final token = await fcm_token.getFcmTokenViaJs(_vapidKeyWeb);
         return NotificationStatus(
           authorized: true,
           hasToken: token != null && token.isNotEmpty,
@@ -94,38 +95,21 @@ class NotificationService {
         }
       }
 
-      final messaging = FirebaseMessaging.instance;
       String? token;
       if (kIsWeb) {
         if (_vapidKeyWeb.startsWith('REPLACE_')) {
           return 'מפתח VAPID חסר – ראי NOTIFICATIONS_SETUP.md';
         }
-        try {
-          token = await messaging.getToken(vapidKey: _vapidKeyWeb);
-        } catch (e) {
-          // ייתכן שה-Service Worker עדיין לא מוכן – ננסה שוב אחרי המתנה
-          if (e.toString().contains('MissingPluginException') ||
-              e.toString().contains('no active Service Worker')) {
-            await Future<void>.delayed(const Duration(seconds: 2));
-            token = await messaging.getToken(vapidKey: _vapidKeyWeb);
-          } else {
-            rethrow;
-          }
-        } catch (e2) {
-          final msg2 = e2.toString();
-          if (msg2.contains('messaging/permission-blocked') ||
-              msg2.contains('permission-blocked')) {
-            return 'הדפדפן חוסם התראות – בדקי בהגדרות הדפדפן';
-          }
-          if (msg2.contains('messaging/failed-service-worker') ||
-              msg2.contains('service-worker') ||
-              msg2.contains('MissingPluginException') ||
-              msg2.contains('getToken')) {
-            return 'שגיאה ב־Service Worker – רענני את הדף (Ctrl+F5), חכי 5 שניות, ונסי שוב';
-          }
-          return 'שגיאה: ${msg2.length > 80 ? msg2.substring(0, 80) : msg2}';
+        final result = await fcm_token.getFcmTokenViaJs(_vapidKeyWeb);
+        if (result != null && result.startsWith('ERR:')) {
+          return result.substring(4);
+        }
+        token = result;
+        if (token == null || token.isEmpty) {
+          return 'לא התקבל טוקן – ודאי ש־https://shimur.web.app/firebase-messaging-sw.js נטען (פתחי את הקישור ובדקי שמוצג קוד JavaScript)';
         }
       } else {
+        final messaging = FirebaseMessaging.instance;
         token = await messaging.getToken();
       }
 
@@ -168,15 +152,10 @@ class NotificationService {
       if (kIsWeb) {
         if (_vapidKeyWeb.startsWith('REPLACE_')) return;
         if (!web_perm.getWebNotificationPermissionGranted()) return;
-        final messaging = FirebaseMessaging.instance;
-        final token = await messaging.getToken(vapidKey: _vapidKeyWeb);
+        final token = await fcm_token.getFcmTokenViaJs(_vapidKeyWeb);
         if (token != null && token.isNotEmpty) {
           await _firestore.saveFcmToken(token, _platformName());
         }
-        messaging.onTokenRefresh.listen((newToken) async {
-          await _firestore.saveFcmToken(newToken, _platformName());
-        });
-        FirebaseMessaging.onMessage.listen((_) {});
         return;
       }
 
